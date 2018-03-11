@@ -1,0 +1,14 @@
+---
+title: Probando
+author: JR
+date: '2018-03-10'
+slug: probando
+categories:
+  - R
+tags: []
+---
+
+Estoy probando $x$ este texto
+
+$$S_n = \sum_{i=1}^n X_i$$
+`S_n=\sum_{i=1}^nX_i`
