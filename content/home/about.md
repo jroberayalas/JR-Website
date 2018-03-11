@@ -45,6 +45,6 @@ I'm a machine learning scientist working at [The George Institute for Global Hea
 
 I earned my PhD from the Department of Automatic Control and Systems Engineering, University of Sheffield. My thesis was Machine Learning and Data Mining for Environmental Systems Modelling and Analysis, advised by Dr [Hua-Liang Wei](https://www.sheffield.ac.uk/acse/staff/hw).
 
-My research interests include distributed robotics, mobile computing and programmable matter. Here is my latest {{% staticref "pdf/2018-cv.pdf" %}}CV{{% /staticref %}}.
+My research interests include applied machine learning and data visualisataion. Here is my latest {{% staticref "pdf/2018-cv.pdf" %}}CV{{% /staticref %}}.
 
-When I'm not in front of the computer coding or reasearching, I'm travelling somewhere around the world.
+When I'm not in front of the computer coding or researching, I'm travelling somewhere around the world.
