@@ -39,7 +39,7 @@ weight = 5
  
 +++
 
-# Biography
+# About me
 
 I'm a machine learning scientist working at [The George Institute for Global Health](https://www.georgeinstitute.org.uk) in the University of Oxford. I employ and develop machine and deep learning algorithms that can find patterns in large multi-modal data for managing the healthcare challenges facing the world in the 21st century.
 
