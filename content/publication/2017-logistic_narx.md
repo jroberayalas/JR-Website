@@ -17,7 +17,7 @@ authors = ["J. R. Ayala Solares", "H.-L. Wei", "S. A. Billings"]
 publication_types = ["2"]
 
 # Publication name and optional abbreviated version.
-publication = "In *Neural Computing and Applications*"
+publication = "In *Neural Computing and Applications*, Springer"
 publication_short = ""
 
 # Abstract and optional shortened version.
