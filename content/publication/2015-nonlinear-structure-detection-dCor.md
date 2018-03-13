@@ -46,7 +46,7 @@ url_video = ""
 url_poster = ""
 url_source = ""
 
-url_custom = [{name = "View Site", url = "https://link.springer.com/article/10.1007/s11071-015-2149-3"}]
+url_custom = [{name = "View Online", url = "https://link.springer.com/article/10.1007/s11071-015-2149-3"}]
 
 # Does the content use math formatting?
 math = true

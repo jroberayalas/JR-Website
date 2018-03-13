@@ -48,7 +48,7 @@ url_source = ""
 
 # Custom links (optional).
 #   Uncomment line below to enable. For multiple links, use the form `[{...}, {...}, {...}]`.
-url_custom = [{name = "View Thesis", url = "http://etheses.whiterose.ac.uk/18321/"}]
+url_custom = [{name = "View Online", url = "http://etheses.whiterose.ac.uk/18321/"}]
 
 # Does the content use math formatting?
 math = true

@@ -1,9 +1,9 @@
 +++
-title = "Modelling and Prediction of Global Magnetic Disturbance in Near-Earth Space: a Case Study for Kp Index Using NARX Models"
-date = "2016-10-09"
+title = "The Power of Natural Inspiration in Control Systems"
+date = "2015-11-17"
 
 # Authors. Comma separated list, e.g. `["Bob Smith", "David Jones"]`.
-authors = ["J. R. Ayala Solares", "H.-L. Wei", "R. J. Boynton", "S. N. Walker", "S. A. Billings"]
+authors = ["H. E. Ponce Espinosa", "J. R. Ayala Solares"]
 
 # Publication type.
 # Legend:
@@ -14,14 +14,14 @@ authors = ["J. R. Ayala Solares", "H.-L. Wei", "R. J. Boynton", "S. N. Walker", 
 # 4 = Technical report
 # 5 = Book
 # 6 = Book chapter
-publication_types = ["2"]
+publication_types = ["6"]
 
 # Publication name and optional abbreviated version.
-publication = "In *Space Weather*"
+publication = "In *Nature-Inspired Computing for Control Systems*. Part of the Studies in Systems, Decision and Control book series"
 publication_short = ""
 
 # Abstract and optional shortened version.
-abstract = "Severe geomagnetic disturbances can be hazardous for modern technological systems. The reliable forecast of parameters related to the state of the magnetosphere can facilitate the mitigation of adverse effects of space weather. This study is devoted to the modeling and forecasting of the evolution of the Kp index related to global geomagnetic disturbances. Throughout this work the Nonlinear AutoRegressive with eXogenous inputs (NARX) methodology is applied. Two approaches are presented: i) a recursive sliding window approach, and ii) a direct approach. These two approaches are studied separately and are then compared to evaluate their performances. It is shown that the direct approach outperforms the recursive approach, but both tend to produce predictions slightly biased from the true values for low and high disturbances."
+abstract = "Throughout history, nature has always been an inspiration for mankind. It is not an exaggeration to say that almost every human invention, from engineering to social sciences, has been an attempt to replicate nature. In fact, nature continues to play an important roll in different human activities. From a scientific perspective, nature-inspired methods have proven to be an efficient tool for tackling real-life problems that are difficult to solve because of their high complexity or the limitation of resources to analyze them. The core idea is the fact that several natural phenomena, from simple to complex, always try to optimize certain parameters. Thus, this chapter gives an overview of nature-inspired methods from computational point of view, and summarizes key contributions of this book that focuses on methods that can simulate natural phenomena using computers, and the benefits of applying this methodology to the analysis and design of engineering control systems."
 abstract_short = ""
 
 # Featured image thumbnail (optional)
@@ -46,7 +46,7 @@ url_video = ""
 url_poster = ""
 url_source = ""
 
-url_custom = [{name = "View Site", url = "http://onlinelibrary.wiley.com/doi/10.1002/2016SW001463/full"}]
+url_custom = [{name = "View Online", url = "https://link.springer.com/chapter/10.1007/978-3-319-26230-7_1"}]
 
 # Does the content use math formatting?
 math = true
@@ -61,5 +61,3 @@ image = ""
 caption = ""
 
 +++
-
-More detail can easily be written here using *Markdown* and $\rm \LaTeX$ math code.

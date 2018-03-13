@@ -1,6 +1,6 @@
 +++
-title = "Optimal power allocation of a single transmitter-multiple receivers channel in a cognitive sensor network"
-date = "2012-08-28"
+title = "Optimal power allocation of a sensor node under different rate constraints"
+date = "2012-06-13"
 
 # Authors. Comma separated list, e.g. `["Bob Smith", "David Jones"]`.
 authors = ["J. R. Ayala Solares", "Z. Rezki", "M.-S. Alouini"]
@@ -17,11 +17,11 @@ authors = ["J. R. Ayala Solares", "Z. Rezki", "M.-S. Alouini"]
 publication_types = ["1"]
 
 # Publication name and optional abbreviated version.
-publication = "In *IEEE International Conference on Wireless Communications in Unusual and Confined Areas*"
-publication_short = "In *ICWCUCA*"
+publication = "In *IEEE International Conference on Communications*"
+publication_short = "In *IEEE ICC*"
 
 # Abstract and optional shortened version.
-abstract = "The optimal transmit power of a wireless sensor network with one transmitter and multiple receivers in a cognitive radio environment while satisfying independent peak, independent average, sum of peak and sum of average transmission rate constraints is derived. A suboptimal scheme is proposed to overcome the frequency of outages for the independent peak transmission rate constraint. In all cases, numerical results are provided for Rayleigh fading channels."
+abstract = "The optimal transmit power of a sensor node while satisfying different rate constraints is derived. First, an optimization problem with an instantaneous transmission rate constraint is addressed. Next, the optimal power is analyzed, but now with an average transmission rate constraint. The optimal solution for a class of fading channels, in terms of system parameters, is presented and a suboptimal solution is also proposed for an easier, yet efficient, implementation. Insightful asymptotical analysis for both schemes, considering a Rayleigh fading channel, are shown. Finally, the optimal power allocation for a sensor node in a cognitive radio environment is analyzed where an optimum solution for a class of fading channels is again derived. In all cases, numerical results are provided for either Rayleigh or Nakagami-m fading channels."
 abstract_short = ""
 
 # Featured image thumbnail (optional)
@@ -46,7 +46,7 @@ url_video = ""
 url_poster = ""
 url_source = ""
 
-url_custom = [{name = "View Online", url = "http://ieeexplore.ieee.org/document/6402479/"}]
+url_custom = [{name = "View Online", url = "http://ieeexplore.ieee.org/document/6363758/"}]
 
 # Does the content use math formatting?
 math = true

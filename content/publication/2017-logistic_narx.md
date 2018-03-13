@@ -48,7 +48,7 @@ url_source = ""
 
 # Custom links (optional).
 #   Uncomment line below to enable. For multiple links, use the form `[{...}, {...}, {...}]`.
-url_custom = [{name = "View Site", url = "https://link.springer.com/article/10.1007/s00521-017-2976-x"}]
+url_custom = [{name = "View Online", url = "https://link.springer.com/article/10.1007/s00521-017-2976-x"}]
 
 # Does the content use math formatting?
 math = true
