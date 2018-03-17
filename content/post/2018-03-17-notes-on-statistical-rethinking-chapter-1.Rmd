@@ -1,0 +1,48 @@
+---
+title: Notes on Statistical Rethinking (Chapter 1 - The Golem of Prague)
+author: José Roberto Ayala Solares
+date: '2018-03-17'
+categories:
+  - R
+  - StatisticalRethinking
+tags:
+  - bayesian
+  - notes
+slug: notes-on-statistical-rethinking-chapter-1
+summary: The following are a series of notes from the great book [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/) by [Richard McElreath](http://xcelab.net/rm/), which comes accompanied by the R package [`rethinking`](https://github.com/rmcelreath/rethinking) and some [improvements](https://osf.io/c45bx/) (thanks to [Solomon Kurz](https://www.researchgate.net/profile/Solomon_Kurz)) from [Bürkner](https://paul-buerkner.github.io/about/)’s [`brms`](https://github.com/paul-buerkner/brms) package, [Wickham](http://hadley.nz/)'s [`ggplot2`](https://github.com/tidyverse/ggplot2) package and the [`tidyverse`](https://www.tidyverse.org/) syntax. These are mainly done for my future self, to help me remember the main concepts and ideas.
+---
+
+## 1.1. Statistical golems
+> Nearly every branch of science relies upon the senses of statistical golems. In many cases, it is no longer possible to even measure phenomena of interest, without making use of a model. However, there is no wisdom in the golem. It doesn’t discern when the context is inappropriate for its answers. It just knows its own procedure, nothing else.
+
+## 1.2. Statistical rethinking
+> All models are false, so what does it mean to falsify a model? One consequence of the requirement to work with models is that it’s no longer possible to deduce that a hypothesis is false, just because we reject a model derived from it.
+
+> Instead of choosing among various black-box tools for testing null hypotheses, we should learn to build and analyze multiple non-null models of natural phenomena.
+
+## 1.3. Three tools for golem engineering
+1. Bayesian data analysis
+2. Multilevel models
+3. Model comparison using information criteria
+
+### Bayesian data analysis
+> Bayesian data analysis is just a logical procedure for processing information. Bayesian golems treat “randomness” as a property of information, not of the world. Nothing in the real world (without considering quantum mechanics) is actually random. Presumably, if we had more information, we could exactly predict everything. We just use randomness to describe our uncertainty in the face of incomplete knowledge.
+
+### Multilevel models
+Multilevel models (also known as hierarchical, random effects, varying effects, or mixed effects models) are models with multiple levels of uncertainty, each feeding into the next.
+
+Reasons to use multilevel models:
+
+> (1) To adjust estimates for repeat sampling. When more than one observation arises from the same individual, location, or time, then traditional, single-level models may mislead us.
+(2) To adjust estimates for imbalance in sampling. When some individuals, locations, or times are sampled more than others, we may also be misled by single-level models.
+(3) To study variation. If our research questions include variation among individuals or other groups within the data, then multilevel models are a big help, because they model variation explicitly.
+(4) To avoid averaging. Frequently, scholars pre-average some data to construct variables for a regression analysis. This can be dangerous, because averaging removes variation. It therefore manufactures false confidence. Multilevel models allow us to preserve the uncertainty in the original, pre-averaged values, while still using the average to make predictions.
+
+### Model comparison using information criteria
+> Information criteria aim to let us compare models based upon future predictive accuracy, rather than  merely fit (to prevent overfitting).
+
+##References
+McElreath, R. (2016). *Statistical rethinking: A Bayesian course with examples in R and Stan.* Chapman & Hall/CRC Press.
+
+Kurz, A. S. (2018, March 9). *brms, ggplot2 and tidyverse code, by chapter*. Retrieved from https://osf.io/c45bx/
+

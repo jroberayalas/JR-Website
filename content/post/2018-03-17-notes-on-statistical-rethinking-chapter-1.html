@@ -1,0 +1,69 @@
+---
+title: Notes on Statistical Rethinking (Chapter 1 - The Golem of Prague)
+author: José Roberto Ayala Solares
+date: '2018-03-17'
+categories:
+  - R
+  - StatisticalRethinking
+tags:
+  - bayesian
+  - notes
+slug: notes-on-statistical-rethinking-chapter-1
+summary: The following are a series of notes from the great book [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/) by [Richard McElreath](http://xcelab.net/rm/), which comes accompanied by the R package [`rethinking`](https://github.com/rmcelreath/rethinking) and some [improvements](https://osf.io/c45bx/) (thanks to [Solomon Kurz](https://www.researchgate.net/profile/Solomon_Kurz)) from [Bürkner](https://paul-buerkner.github.io/about/)’s [`brms`](https://github.com/paul-buerkner/brms) package, [Wickham](http://hadley.nz/)'s [`ggplot2`](https://github.com/tidyverse/ggplot2) package and the [`tidyverse`](https://www.tidyverse.org/) syntax. These are mainly done for my future self, to help me remember the main concepts and ideas.
+---
+
+
+
+<div id="statistical-golems" class="section level2">
+<h2>1.1. Statistical golems</h2>
+<blockquote>
+<p>Nearly every branch of science relies upon the senses of statistical golems. In many cases, it is no longer possible to even measure phenomena of interest, without making use of a model. However, there is no wisdom in the golem. It doesn’t discern when the context is inappropriate for its answers. It just knows its own procedure, nothing else.</p>
+</blockquote>
+</div>
+<div id="statistical-rethinking" class="section level2">
+<h2>1.2. Statistical rethinking</h2>
+<blockquote>
+<p>All models are false, so what does it mean to falsify a model? One consequence of the requirement to work with models is that it’s no longer possible to deduce that a hypothesis is false, just because we reject a model derived from it.</p>
+</blockquote>
+<blockquote>
+<p>Instead of choosing among various black-box tools for testing null hypotheses, we should learn to build and analyze multiple non-null models of natural phenomena.</p>
+</blockquote>
+</div>
+<div id="three-tools-for-golem-engineering" class="section level2">
+<h2>1.3. Three tools for golem engineering</h2>
+<ol style="list-style-type: decimal">
+<li>Bayesian data analysis</li>
+<li>Multilevel models</li>
+<li>Model comparison using information criteria</li>
+</ol>
+<div id="bayesian-data-analysis" class="section level3">
+<h3>Bayesian data analysis</h3>
+<blockquote>
+<p>Bayesian data analysis is just a logical procedure for processing information. Bayesian golems treat “randomness” as a property of information, not of the world. Nothing in the real world (without considering quantum mechanics) is actually random. Presumably, if we had more information, we could exactly predict everything. We just use randomness to describe our uncertainty in the face of incomplete knowledge.</p>
+</blockquote>
+</div>
+<div id="multilevel-models" class="section level3">
+<h3>Multilevel models</h3>
+<p>Multilevel models (also known as hierarchical, random effects, varying effects, or mixed effects models) are models with multiple levels of uncertainty, each feeding into the next.</p>
+<p>Reasons to use multilevel models:</p>
+<blockquote>
+<ol style="list-style-type: decimal">
+<li>To adjust estimates for repeat sampling. When more than one observation arises from the same individual, location, or time, then traditional, single-level models may mislead us.</li>
+<li>To adjust estimates for imbalance in sampling. When some individuals, locations, or times are sampled more than others, we may also be misled by single-level models.</li>
+<li>To study variation. If our research questions include variation among individuals or other groups within the data, then multilevel models are a big help, because they model variation explicitly.</li>
+<li>To avoid averaging. Frequently, scholars pre-average some data to construct variables for a regression analysis. This can be dangerous, because averaging removes variation. It therefore manufactures false confidence. Multilevel models allow us to preserve the uncertainty in the original, pre-averaged values, while still using the average to make predictions.</li>
+</ol>
+</blockquote>
+</div>
+<div id="model-comparison-using-information-criteria" class="section level3">
+<h3>Model comparison using information criteria</h3>
+<blockquote>
+<p>Information criteria aim to let us compare models based upon future predictive accuracy, rather than merely fit (to prevent overfitting).</p>
+</blockquote>
+</div>
+</div>
+<div id="references" class="section level2">
+<h2>References</h2>
+<p>McElreath, R. (2016). <em>Statistical rethinking: A Bayesian course with examples in R and Stan.</em> Chapman &amp; Hall/CRC Press.</p>
+<p>Kurz, A. S. (2018, March 9). <em>brms, ggplot2 and tidyverse code, by chapter</em>. Retrieved from <a href="https://osf.io/c45bx/" class="uri">https://osf.io/c45bx/</a></p>
+</div>
