@@ -3,13 +3,19 @@ title: Notes on Statistical Rethinking (Chapter 1 - The Golem of Prague)
 author: José Roberto Ayala Solares
 date: '2018-03-17'
 categories:
-  - R
   - StatisticalRethinking
 tags:
   - bayesian
   - notes
 slug: notes-on-statistical-rethinking-chapter-1
-summary: The following are a series of notes from the great book [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/) by [Richard McElreath](http://xcelab.net/rm/), which comes accompanied by the R package [`rethinking`](https://github.com/rmcelreath/rethinking) and some [improvements](https://osf.io/c45bx/) (thanks to [Solomon Kurz](https://www.researchgate.net/profile/Solomon_Kurz)) from [Bürkner](https://paul-buerkner.github.io/about/)’s [`brms`](https://github.com/paul-buerkner/brms) package, [Wickham](http://hadley.nz/)'s [`ggplot2`](https://github.com/tidyverse/ggplot2) package and the [`tidyverse`](https://www.tidyverse.org/) syntax. These are mainly done for my future self, to help me remember the main concepts and ideas.
+summary: The following are a series of notes from the great book [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/)
+  by [Richard McElreath](http://xcelab.net/rm/), which comes accompanied by the R
+  package [`rethinking`](https://github.com/rmcelreath/rethinking) and some [improvements](https://osf.io/c45bx/)
+  (thanks to [Solomon Kurz](https://www.researchgate.net/profile/Solomon_Kurz)) from
+  [Bürkner](https://paul-buerkner.github.io/about/)’s [`brms`](https://github.com/paul-buerkner/brms)
+  package, [Wickham](http://hadley.nz/)'s [`ggplot2`](https://github.com/tidyverse/ggplot2)
+  package and the [`tidyverse`](https://www.tidyverse.org/) syntax. These are mainly
+  done for my future self, to help me remember the main concepts and ideas.
 ---
 
 ## 1.1. Statistical golems
@@ -31,6 +37,8 @@ summary: The following are a series of notes from the great book [Statistical Re
 ### Multilevel models
 Multilevel models (also known as hierarchical, random effects, varying effects, or mixed effects models) are models with multiple levels of uncertainty, each feeding into the next.
 
+> Multilevel regression deserves to be the default form of regression.
+
 Reasons to use multilevel models:
 
 > (1) To adjust estimates for repeat sampling. When more than one observation arises from the same individual, location, or time, then traditional, single-level models may mislead us.
@@ -41,7 +49,7 @@ Reasons to use multilevel models:
 ### Model comparison using information criteria
 > Information criteria aim to let us compare models based upon future predictive accuracy, rather than  merely fit (to prevent overfitting).
 
-##References
+## References
 McElreath, R. (2016). *Statistical rethinking: A Bayesian course with examples in R and Stan.* Chapman & Hall/CRC Press.
 
 Kurz, A. S. (2018, March 9). *brms, ggplot2 and tidyverse code, by chapter*. Retrieved from https://osf.io/c45bx/

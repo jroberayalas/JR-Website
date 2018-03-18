@@ -3,13 +3,19 @@ title: Notes on Statistical Rethinking (Chapter 1 - The Golem of Prague)
 author: José Roberto Ayala Solares
 date: '2018-03-17'
 categories:
-  - R
   - StatisticalRethinking
 tags:
   - bayesian
   - notes
 slug: notes-on-statistical-rethinking-chapter-1
-summary: The following are a series of notes from the great book [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/) by [Richard McElreath](http://xcelab.net/rm/), which comes accompanied by the R package [`rethinking`](https://github.com/rmcelreath/rethinking) and some [improvements](https://osf.io/c45bx/) (thanks to [Solomon Kurz](https://www.researchgate.net/profile/Solomon_Kurz)) from [Bürkner](https://paul-buerkner.github.io/about/)’s [`brms`](https://github.com/paul-buerkner/brms) package, [Wickham](http://hadley.nz/)'s [`ggplot2`](https://github.com/tidyverse/ggplot2) package and the [`tidyverse`](https://www.tidyverse.org/) syntax. These are mainly done for my future self, to help me remember the main concepts and ideas.
+summary: The following are a series of notes from the great book [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/)
+  by [Richard McElreath](http://xcelab.net/rm/), which comes accompanied by the R
+  package [`rethinking`](https://github.com/rmcelreath/rethinking) and some [improvements](https://osf.io/c45bx/)
+  (thanks to [Solomon Kurz](https://www.researchgate.net/profile/Solomon_Kurz)) from
+  [Bürkner](https://paul-buerkner.github.io/about/)’s [`brms`](https://github.com/paul-buerkner/brms)
+  package, [Wickham](http://hadley.nz/)'s [`ggplot2`](https://github.com/tidyverse/ggplot2)
+  package and the [`tidyverse`](https://www.tidyverse.org/) syntax. These are mainly
+  done for my future self, to help me remember the main concepts and ideas.
 ---
 
 
@@ -45,6 +51,9 @@ summary: The following are a series of notes from the great book [Statistical Re
 <div id="multilevel-models" class="section level3">
 <h3>Multilevel models</h3>
 <p>Multilevel models (also known as hierarchical, random effects, varying effects, or mixed effects models) are models with multiple levels of uncertainty, each feeding into the next.</p>
+<blockquote>
+<p>Multilevel regression deserves to be the default form of regression.</p>
+</blockquote>
 <p>Reasons to use multilevel models:</p>
 <blockquote>
 <ol style="list-style-type: decimal">
