@@ -3,7 +3,7 @@
 
 # The URL of your website.
 # End your URL with a `/` trailing slash, e.g. `https://example.com/`.
-baseurl = "/"
+baseurl = "jroberayalas.netlify.com/"
 
 # Title of your site
 title = "José Roberto Ayala Solares"
@@ -23,7 +23,7 @@ paginate = 10
 disqusShortname = ""
 
 # Enable analytics by entering your Google Analytics tracking ID
-googleAnalytics = ""
+googleAnalytics = "UA-116016700-1"
 
 # Default language to use (if you setup multilingual support)
 defaultContentLanguage = "en"
