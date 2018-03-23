@@ -1,0 +1,128 @@
+---
+title: Notes on Statistical Rethinking (Chapter 3 - Sampling the Imaginary)
+author: José Roberto Ayala Solares
+date: '2018-03-23'
+slug: notes-on-statistical-rethinking-chapter-3-sampling-the-imaginary
+categories:
+  - StatisticalRethinking
+tags:
+  - bayesian
+  - notes
+summary: Notes for Chapter 3 of [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/)
+---
+
+
+
+<blockquote>
+<p>Bayesian inference is distinguished by a broad view of probability, not by the use of Bayes’ theorem.</p>
+</blockquote>
+<p>Scientific inference is often framed as follows:</p>
+<blockquote>
+<ol style="list-style-type: decimal">
+<li>An hypothesis is either true or false;</li>
+<li>we use a statistical procedure and get an imperfect cue of the hypothesis’ falsity;</li>
+<li>we (should) use Bayes’ theorem to logically deduce the impact of the cue on the status of the hypothesis. <strong>It’s the third step that is hardly ever done.</strong></li>
+</ol>
+</blockquote>
+<div id="sampling-to-summarize" class="section level2">
+<h2>3.2. Sampling to summarize</h2>
+<p>Common questions to ask using posterior probabilities are divided into questions about (1) intervals of <em>defined boundaries</em>, (2) questions about intervals of <em>defined probability mass</em>, and (3) questions about <em>point estimates</em>.</p>
+<div id="intervals-of-defined-boundaries" class="section level3">
+<h3>3.2.1. Intervals of defined boundaries</h3>
+<p>How much posterior probability lies between 0.5 and 0.75?</p>
+<pre class="r"><code># define grid
+p_grid &lt;- seq(from=0 , to=1, length.out=1000)
+
+# define prior
+prior &lt;- rep(1, 1000)
+
+# compute likelihood at each value in grid
+likelihood &lt;- dbinom(6, size=9, prob=p_grid)
+
+# compute product of likelihood and prior
+posterior &lt;- likelihood * prior
+
+# standardize the posterior, so it sums to 1
+posterior &lt;- posterior / sum(posterior)
+
+# sample the posterior
+samples &lt;- sample(p_grid, prob=posterior, size=1e4, replace=TRUE)
+
+# ask a question
+sum(samples &gt; 0.5 &amp; samples &lt; 0.75) / 1e4</code></pre>
+<pre><code>## [1] 0.6068</code></pre>
+</div>
+<div id="intervals-of-defined-mass" class="section level3">
+<h3>3.2.2. Intervals of defined mass</h3>
+<blockquote>
+<p>It is more common to see scientific journals reporting an interval of defined mass, usually known as a confidence interval. An interval of posterior probability, such as the ones we are working with, may instead be called a credible interval. These posterior intervals report two parameter values that contain between them a specified amount of posterior probability, a probability mass.</p>
+</blockquote>
+<p>When intervals assign equal probability mass to each tail, they are known as <strong>percentile intervals</strong> (PI). For example, where are the boundaries of the 80% percentile confidence interval?</p>
+<pre class="r"><code>quantile(samples, c(0.1, 0.9))</code></pre>
+<pre><code>##       10%       90% 
+## 0.4494494 0.8098098</code></pre>
+<blockquote>
+<p>These intervals do a good job of communicating the shape of a distribution, as long as the distribution isn’t too asymmetrical. But in terms of supporting inferences about which parameters are consistent with the data, they are not perfect.</p>
+</blockquote>
+<p>To overcome this, we can use the <strong>highest posterior density interval</strong> (HPDI).</p>
+<blockquote>
+<p>If you want an interval that best represents the parameter values most consistent with the data, then you want the densest of these intervals The HPDI is the narrowest interval containing the specified probability mass.</p>
+</blockquote>
+<pre class="r"><code>rethinking::HPDI(samples, prob=0.8)</code></pre>
+<pre><code>##      |0.8      0.8| 
+## 0.4774775 0.8318318</code></pre>
+<blockquote>
+<p>The HPDI also has some disadvantages. HPDI is more computationally intensive than PI and suffers from greater <em>simulation variance</em>, which is a fancy way of saying that it is sensitive to how many samples you draw from the posterior. It is also harder to understand and many scientific audiences will not appreciate its features, while they will immediately understand a percentile interval, as ordinary non-Bayesian intervals are nearly always percentile intervals (although of sampling distributions, not posterior distributions).</p>
+</blockquote>
+<blockquote>
+<p>Overall, if the choice of interval type makes a big difference, then you shouldn’t be using intervals to summarize the posterior. Remember, the entire posterior distribution is the Bayesian estimate. It summarizes the relative plausibilities of each possible value of the parameter. Intervals of the distribution are just helpful for summarizing it. <strong>If choice of interval leads to different inferences, then you’d be better off just plotting the entire posterior distribution</strong>.</p>
+</blockquote>
+<blockquote>
+<p><strong>Why 95%?</strong> The most common interval mass in the natural and social sciences is the 95% interval. This interval leaves 5% of the probability outside, corresponding to a 5% chance of the parameter not lying within the interval. This customary interval also reflects the customary threshold for statistical significance, which is 5% or p &lt; 0.05. It is not easy to defend the choice of 95% (5%), outside of pleas to convention. Often, all confidence intervals do is communicate the shape of a distribution. In that case, a series of nested intervals may be more useful than any one interval. For example, why not present 67%, 89%, and 97% intervals, along with the median? Why these values? No reason. They are prime numbers, which makes them easy to remember. And these values avoid 95%, since conventional 95% intervals encourage many readers to conduct unconscious hypothesis tests.</p>
+</blockquote>
+<blockquote>
+<p><em><strong>What do confidence intervals mean?</strong> It is common to hear that a 95% confidence interval means that there is a probability 0.95 that the true parameter value lies within the interval. In strict non-Bayesian statistical inference, such a statement is never correct, because strict non-Bayesian inference forbids using probability to measure uncertainty about parameters. Instead, one should say that if we repeated the study and analysis a very large number of times, then 95% of the computed intervals would contain the true parameter value. But whether you use a Bayesian interpretation or not, <strong>a 95% interval does not contain the true value 95% of the time</strong>. The history of science teaches us that confidence intervals exhibit chronic overconfidence. The 95% is a </em>small world* number, only true in the model’s logical world. So it will never apply exactly to the real or <em>large world</em>.</p>
+</blockquote>
+</div>
+<div id="point-estimates" class="section level3">
+<h3>3.2.3. Point estimates</h3>
+<blockquote>
+<p>In order to decide upon a point estimate, a single-value summary of the posterior distribution, we need to pick a loss function. Different loss functions nominate different point estimates. The two most common examples are the absolute loss <span class="math inline">\(|d - p|\)</span>, which leads to the median as the point estimate, and the quadratic loss <span class="math inline">\((d - p)^2\)</span>, which leads to the posterior mean as the point estimate.</p>
+</blockquote>
+</div>
+</div>
+<div id="sampling-to-simulate-prediction" class="section level2">
+<h2>3.3. Sampling to simulate prediction</h2>
+<blockquote>
+<p>Another common job for samples from the posterior is to ease simulation of the model’s implied observations. Generating implied observations from a model is useful for at least four distinct reasons:</p>
+</blockquote>
+<blockquote>
+<ol style="list-style-type: decimal">
+<li>Model checking. After a model is fit to real data, it is worth simulating implied observations, to check both whether the fit worked correctly and to investigate model behavior.</li>
+<li>Software validation. In order to be sure that our model fitting software is working, it helps to simulate observations under a known model and then attempt to recover the values of the parameters the data were simulated under.</li>
+<li>Research design. If you can simulate observations from your hypothesis, then you can evaluate whether the research design can be effective. In a narrow sense, this means doing power analysis, but the possibilities are much broader.</li>
+<li>Forecasting. Estimates can be used to simulate new predictions, for new cases and future observations. These forecasts can be useful as applied prediction, but also for model criticism and revision.</li>
+</ol>
+</blockquote>
+<blockquote>
+<p>Bayesian models are always <strong>generative</strong>, capable of simulating predictions.</p>
+</blockquote>
+<div id="model-checking." class="section level3">
+<h3>3.3.2. Model checking.</h3>
+<blockquote>
+<p>Model checking means (1) ensuring the model fitting worked correctly and (2) evaluating the adequacy of a model for some purpose. Since Bayesian models are always generative, able to simulate observations as well as estimate parameters from observations, once you condition a model on data, you can simulate to examine the model’s empirical expectations.</p>
+</blockquote>
+<blockquote>
+<p>After assessing whether the posterior distribution is the correct one, because the software worked correctly, it’s useful to also look for aspects of the data that are not well described by the model’s expectations. <strong>The goal is not to test whether the model’s assumptions are “true,” because all models are false</strong>. Rather, the goal is to assess exactly how the model fails to describe the data, as a path towards model comprehension, revision, and improvement.</p>
+</blockquote>
+<blockquote>
+<p>We’d like to propagate the parameter uncertainty—carry it forward—as we evaluate the implied predictions. All that is required is averaging over the posterior density for p, while computing the predictions. For each possible value of the parameter p, there is an implied distribution of outcomes. So if you were to compute the sampling distribution of outcomes at each value of p, then you could average all of these prediction distributions together, using the posterior probabilities of each value of p, to get a <strong>posterior predictive distribution</strong>.</p>
+</blockquote>
+<pre class="r"><code>w &lt;- rbinom(1e4, size=9, prob=samples)
+rethinking::dens(w, adj=2.5)</code></pre>
+<p><img src="/post/2018-03-23-notes-on-statistical-rethinking-chapter-3-sampling-the-imaginary_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<blockquote>
+<p>Model fitting remains an objective procedure—everyone and every golem conducts Bayesian updating in a way that doesn’t depend upon personal preferences. But model checking is inherently subjective, and this actually allows it to be quite powerful, since subjective knowledge of an empirical domain provides expertise. Expertise in turn allows for imaginative checks of model performance. Since golems have terrible imaginations, we need the freedom to engage our own imaginations. In this way, the objective and subjective work together.</p>
+</blockquote>
+</div>
+</div>
