@@ -1,16 +1,141 @@
 ---
 title: Notes on Statistical Rethinking (Chapter 4 - Linear Models)
 author: José Roberto Ayala Solares
-date: '2018-03-28'
-slug: notes-on-statistical-rethinking-chapter-4-linear-models
+date: '2018-03-29'
 categories:
   - StatisticalRethinking
 tags:
   - bayesian
   - notes
+slug: notes-on-statistical-rethinking-chapter-4-linear-models
 summary: Notes for Chapter 4 of [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/)
 ---
 
 > Linear regression is a family of simple statistical golems that attempt to learn about the mean and variance of some measurement, using an additive combination of other measurements. Linear regression can usefully describe a very large variety of natural phenomena, and it is a descriptive model that corresponds to many different process models.
 
+## 4.1. Why normal distributions are normal
+### 4.1.1. Normal by addition
+> Any process that adds together random values from the same distribution converges to a normal.
 
+```{r message=FALSE}
+library(tidyverse)
+
+set.seed(1000)
+pos <- 
+  replicate(100, runif(16, -1, 1)) %>%        # Here's the simulation
+  as_tibble() %>%                             # For data manipulation, we'll make this a tibble
+  rbind(0, .) %>%                             # Here we add a row of zeros above the simulation results
+  mutate(step = 0:16) %>%                     # This adds our step index
+  gather(key, value, -step) %>%               # Here we convert the data to the long format
+  mutate(person = rep(1:100, each = 17)) %>%  # This adds a person id index
+  # The next two lines allows us to make culmulative sums within each person
+  group_by(person) %>%
+  mutate(position = cumsum(value)) %>%
+  ungroup()  # Ungrouping allows for further data manipulation
+
+pos %>%
+  filter(step == 16) %>%
+  ggplot(aes(x = position)) +
+  geom_density(color = "dodgerblue1") + #geom_line(stat = "density", color = "dodgerblue1") +
+  coord_cartesian(xlim = -6:6) +
+  labs(title = "16 steps")
+```
+
+### 4.1.2. Normal by multiplication
+> Small effects that multiply together are approximately additive, and so they also tend to stabilize on Gaussian distributions.
+
+```{r}
+set.seed(.1)
+growth <- 
+  replicate(10000, prod(1 + runif(12, 0, 0.1))) %>%
+  as_tibble()
+
+ggplot(data = growth, aes(x = value)) +
+  geom_density(color = "dodgerblue1")
+```
+
+### 4.1.3. Normal by log-multiplication
+> Large deviates that are multiplied together do not produce Gaussian distributions, but they do tend to produce Gaussian distributions on the log scale.
+
+```{r}
+set.seed(12)
+replicate(10000, log(prod(1 + runif(12,0,0.5)))) %>%
+    as_tibble() %>%
+    ggplot(aes(x = value)) +
+    geom_density(color = "dodgerblue1")
+```
+
+### 4.1.4. Using Gaussian distributions
+#### 4.1.4.1. Ontological justification
+> The world is full of Gaussian distributions, approximately. As a mathematical idealization, we’re never going to experience a perfect Gaussian distribution. But it is a widespread pattern, appearing again and again at different scales and in different domains. Measurement errors, variations in growth, and the velocities of molecules all tend towards Gaussian distributions. These processes do this because at their heart, these processes add together fluctuations. And repeatedly adding finite fluctuations results in a distribution of sums that have shed all information about the underlying process, aside from mean and spread.
+One consequence of this is that statistical models based on Gaussian distributions cannot reliably identify micro-process. But it also means that these models can do useful work, even when they cannot identify process.
+
+#### 4.1.4.2 Epistemological justification
+> The Gaussian distribution is the most natural expression of our state of ignorance, because if all we are willing to assume is that a measure has finite variance, the Gaussian distribution is the shape that can be realized in the largest number of ways and does not introduce any new assumptions. **It is the least surprising and least informative assumption to make.**
+
+## 4.3. A Gaussian model of height
+### 4.3.1. The data
+```{r message=FALSE}
+# Load data from the rethinking package
+library(rethinking)
+data(Howell1)
+d <- Howell1
+
+# Have a look at the data
+d %>% glimpse()
+```
+
+```{r}
+# Filter heights of adults in the sample. The reason to filter out non-adults is that height is strongly correlated with age, before adulthood.
+d2 <- d %>% filter(age >= 18) %>% glimpse()
+```
+
+### 4.3.2. The model
+```{r}
+d2 %>%
+    ggplot(aes(x = height)) + 
+    geom_density()
+```
+
+> But be careful about choosing the Gaussian distribution only when the plotted outcome variable looks Gaussian to you. Gawking at the raw data, to try to decide how to model them, is usually not a good idea. The data could be a mixture of different Gaussian distributions, for example, and in that case you won’t be able to detect the underlying normality just by eyeballing the outcome distribution. Furthermore, the empirical distribution needn’t be actually Gaussian in order to justify using a Gaussian likelihood.
+
+Consider the model:
+
+<center>$\begin{eqnarray} { h }_{ i } & \sim  & Normal(\mu ,\sigma) \\ \mu  & \sim  & Normal(178, 20) \\ \sigma  & \sim  & Uniform(0,50) \end{eqnarray}$</center>
+
+> The short model above is sometimes described as assuming that the values ${ h }_{ i }$ are independent and identically distributed (i.e. i.i.d., iid, or IID). “iid” indicates that each value ${ h }_{ i }$ has the same probability function, independent of the other $h$ values and using the same parameters. A moment’s reflection tells us that this is hardly ever true, in a physical sense. Whether measuring the same distance repeatedly or studying a population of heights, it is hard to argue that every measurement is independent of the others. The i.i.d. assumption doesn’t have to seem awkward, however, as long as you remember that probability is inside the golem, not outside in the world. The i.i.d. assumption is about how the golem represents its uncertainty. It is an epistemological assumption. It is not a physical assumption about the world, an ontological one, unless you insist that it is.
+
+```{r message=FALSE}
+# Plot prior for mu
+prior_mu <- ggplot(data = tibble(x = seq(from = 100, to = 250, by = .1)), 
+                   aes(x = x, y = dnorm(x, mean = 178, sd = 20))) +
+    geom_line() +
+    xlab(expression(mu)) +
+    ylab("density")
+
+# Plot prior for sigma
+prior_sigma <- ggplot(data = tibble(x = seq(from = -10, to = 60, by = 1)),
+                      aes(x = x, y = dunif(x, min = 0, max = 50))) +
+    geom_line() +
+    scale_y_continuous(NULL, breaks = NULL) +
+    xlab(expression(sigma))
+
+# Plot heights by sampling from the prior
+sample_mu <- rnorm(1e4, 178, 20)
+sample_sigma <- runif(1e4, 0, 50)
+
+heights <- tibble(x = rnorm(1e4, sample_mu, sample_sigma)) %>%
+    ggplot(aes(x = x)) +
+    geom_density() +
+    scale_y_continuous(NULL, breaks = NULL) +
+    xlab("h")
+
+library(gridExtra)
+grid.arrange(prior_mu, prior_sigma, heights, ncol=3)
+```
+
+
+## References
+McElreath, R. (2016). *Statistical rethinking: A Bayesian course with examples in R and Stan.* Chapman & Hall/CRC Press.
+
+Kurz, A. S. (2018, March 9). *brms, ggplot2 and tidyverse code, by chapter*. Retrieved from https://goo.gl/JbvNTj
