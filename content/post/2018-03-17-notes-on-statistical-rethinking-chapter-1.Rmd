@@ -52,5 +52,5 @@ Reasons to use multilevel models:
 ## References
 McElreath, R. (2016). *Statistical rethinking: A Bayesian course with examples in R and Stan.* Chapman & Hall/CRC Press.
 
-Kurz, A. S. (2018, March 9). *brms, ggplot2 and tidyverse code, by chapter*. Retrieved from https://github.com/ASKurz/Statistical_Rethinking_with_brms_ggplot2_and_the_tidyverse
+Kurz, A. S. (2018, March 9). *brms, ggplot2 and tidyverse code, by chapter*. Retrieved from https://goo.gl/JbvNTj
 

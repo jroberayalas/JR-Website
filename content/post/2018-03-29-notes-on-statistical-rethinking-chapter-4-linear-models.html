@@ -1,0 +1,166 @@
+---
+title: Notes on Statistical Rethinking (Chapter 4 - Linear Models)
+author: José Roberto Ayala Solares
+date: '2018-03-29'
+slug: notes-on-statistical-rethinking-chapter-4-linear-models
+categories:
+  - StatisticalRethinking
+tags:
+  - bayesian
+  - notes
+summary: Notes for Chapter 4 of [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/)
+---
+
+
+
+<blockquote>
+<p>Linear regression is a family of simple statistical golems that attempt to learn about the mean and variance of some measurement, using an additive combination of other measurements. Linear regression can usefully describe a very large variety of natural phenomena, and it is a descriptive model that corresponds to many different process models.</p>
+</blockquote>
+<div id="why-normal-distributions-are-normal" class="section level2">
+<h2>4.1. Why normal distributions are normal</h2>
+<div id="normal-by-addition" class="section level3">
+<h3>4.1.1. Normal by addition</h3>
+<blockquote>
+<p>Any process that adds together random values from the same distribution converges to a normal.</p>
+</blockquote>
+<pre class="r"><code>library(tidyverse)
+
+set.seed(1000)
+pos &lt;- 
+  replicate(100, runif(16, -1, 1)) %&gt;%        # Here&#39;s the simulation
+  as_tibble() %&gt;%                             # For data manipulation, we&#39;ll make this a tibble
+  rbind(0, .) %&gt;%                             # Here we add a row of zeros above the simulation results
+  mutate(step = 0:16) %&gt;%                     # This adds our step index
+  gather(key, value, -step) %&gt;%               # Here we convert the data to the long format
+  mutate(person = rep(1:100, each = 17)) %&gt;%  # This adds a person id index
+  # The next two lines allows us to make culmulative sums within each person
+  group_by(person) %&gt;%
+  mutate(position = cumsum(value)) %&gt;%
+  ungroup()  # Ungrouping allows for further data manipulation
+
+pos %&gt;%
+  filter(step == 16) %&gt;%
+  ggplot(aes(x = position)) +
+  geom_density(color = &quot;dodgerblue1&quot;) + #geom_line(stat = &quot;density&quot;, color = &quot;dodgerblue1&quot;) +
+  coord_cartesian(xlim = -6:6) +
+  labs(title = &quot;16 steps&quot;)</code></pre>
+<p><img src="/post/2018-03-29-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
+</div>
+<div id="normal-by-multiplication" class="section level3">
+<h3>4.1.2. Normal by multiplication</h3>
+<blockquote>
+<p>Small effects that multiply together are approximately additive, and so they also tend to stabilize on Gaussian distributions.</p>
+</blockquote>
+<pre class="r"><code>set.seed(.1)
+growth &lt;- 
+  replicate(10000, prod(1 + runif(12, 0, 0.1))) %&gt;%
+  as_tibble()
+
+ggplot(data = growth, aes(x = value)) +
+  geom_density(color = &quot;dodgerblue1&quot;)</code></pre>
+<p><img src="/post/2018-03-29-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
+</div>
+<div id="normal-by-log-multiplication" class="section level3">
+<h3>4.1.3. Normal by log-multiplication</h3>
+<blockquote>
+<p>Large deviates that are multiplied together do not produce Gaussian distributions, but they do tend to produce Gaussian distributions on the log scale.</p>
+</blockquote>
+<pre class="r"><code>set.seed(12)
+replicate(10000, log(prod(1 + runif(12,0,0.5)))) %&gt;%
+    as_tibble() %&gt;%
+    ggplot(aes(x = value)) +
+    geom_density(color = &quot;dodgerblue1&quot;)</code></pre>
+<p><img src="/post/2018-03-29-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+</div>
+<div id="using-gaussian-distributions" class="section level3">
+<h3>4.1.4. Using Gaussian distributions</h3>
+<div id="ontological-justification" class="section level4">
+<h4>4.1.4.1. Ontological justification</h4>
+<blockquote>
+<p>The world is full of Gaussian distributions, approximately. As a mathematical idealization, we’re never going to experience a perfect Gaussian distribution. But it is a widespread pattern, appearing again and again at different scales and in different domains. Measurement errors, variations in growth, and the velocities of molecules all tend towards Gaussian distributions. These processes do this because at their heart, these processes add together fluctuations. And repeatedly adding finite fluctuations results in a distribution of sums that have shed all information about the underlying process, aside from mean and spread. One consequence of this is that statistical models based on Gaussian distributions cannot reliably identify micro-process. But it also means that these models can do useful work, even when they cannot identify process.</p>
+</blockquote>
+</div>
+<div id="epistemological-justification" class="section level4">
+<h4>4.1.4.2 Epistemological justification</h4>
+<blockquote>
+<p>The Gaussian distribution is the most natural expression of our state of ignorance, because if all we are willing to assume is that a measure has finite variance, the Gaussian distribution is the shape that can be realized in the largest number of ways and does not introduce any new assumptions. <strong>It is the least surprising and least informative assumption to make.</strong></p>
+</blockquote>
+</div>
+</div>
+</div>
+<div id="a-gaussian-model-of-height" class="section level2">
+<h2>4.3. A Gaussian model of height</h2>
+<div id="the-data" class="section level3">
+<h3>4.3.1. The data</h3>
+<pre class="r"><code># Load data from the rethinking package
+library(rethinking)
+data(Howell1)
+d &lt;- Howell1
+
+# Have a look at the data
+d %&gt;% glimpse()</code></pre>
+<pre><code>## Observations: 544
+## Variables: 4
+## $ height &lt;dbl&gt; 151.7650, 139.7000, 136.5250, 156.8450, 145.4150, 163.8...
+## $ weight &lt;dbl&gt; 47.82561, 36.48581, 31.86484, 53.04191, 41.27687, 62.99...
+## $ age    &lt;dbl&gt; 63.0, 63.0, 65.0, 41.0, 51.0, 35.0, 32.0, 27.0, 19.0, 5...
+## $ male   &lt;int&gt; 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1...</code></pre>
+<pre class="r"><code># Filter heights of adults in the sample. The reason to filter out non-adults is that height is strongly correlated with age, before adulthood.
+d2 &lt;- d %&gt;% filter(age &gt;= 18) %&gt;% glimpse()</code></pre>
+<pre><code>## Observations: 352
+## Variables: 4
+## $ height &lt;dbl&gt; 151.7650, 139.7000, 136.5250, 156.8450, 145.4150, 163.8...
+## $ weight &lt;dbl&gt; 47.82561, 36.48581, 31.86484, 53.04191, 41.27687, 62.99...
+## $ age    &lt;dbl&gt; 63.0, 63.0, 65.0, 41.0, 51.0, 35.0, 32.0, 27.0, 19.0, 5...
+## $ male   &lt;int&gt; 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1...</code></pre>
+</div>
+<div id="the-model" class="section level3">
+<h3>4.3.2. The model</h3>
+<pre class="r"><code>d2 %&gt;%
+    ggplot(aes(x = height)) + 
+    geom_density()</code></pre>
+<p><img src="/post/2018-03-29-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<blockquote>
+<p>But be careful about choosing the Gaussian distribution only when the plotted outcome variable looks Gaussian to you. Gawking at the raw data, to try to decide how to model them, is usually not a good idea. The data could be a mixture of different Gaussian distributions, for example, and in that case you won’t be able to detect the underlying normality just by eyeballing the outcome distribution. Furthermore, the empirical distribution needn’t be actually Gaussian in order to justify using a Gaussian likelihood.</p>
+</blockquote>
+<p>Consider the model:</p>
+<center>
+<span class="math inline">\(\begin{eqnarray} { h }_{ i } &amp; \sim &amp; Normal(\mu ,\sigma) \\ \mu &amp; \sim &amp; Normal(178, 20) \\ \sigma &amp; \sim &amp; Uniform(0,50) \end{eqnarray}\)</span>
+</center>
+<blockquote>
+<p>The short model above is sometimes described as assuming that the values <span class="math inline">\({ h }_{ i }\)</span> are independent and identically distributed (i.e. i.i.d., iid, or IID). “iid” indicates that each value <span class="math inline">\({ h }_{ i }\)</span> has the same probability function, independent of the other <span class="math inline">\(h\)</span> values and using the same parameters. A moment’s reflection tells us that this is hardly ever true, in a physical sense. Whether measuring the same distance repeatedly or studying a population of heights, it is hard to argue that every measurement is independent of the others. The i.i.d. assumption doesn’t have to seem awkward, however, as long as you remember that probability is inside the golem, not outside in the world. The i.i.d. assumption is about how the golem represents its uncertainty. It is an epistemological assumption. It is not a physical assumption about the world, an ontological one, unless you insist that it is.</p>
+</blockquote>
+<pre class="r"><code># Plot prior for mu
+prior_mu &lt;- ggplot(data = tibble(x = seq(from = 100, to = 250, by = .1)), 
+                   aes(x = x, y = dnorm(x, mean = 178, sd = 20))) +
+    geom_line() +
+    xlab(expression(mu)) +
+    ylab(&quot;density&quot;)
+
+# Plot prior for sigma
+prior_sigma &lt;- ggplot(data = tibble(x = seq(from = -10, to = 60, by = 1)),
+                      aes(x = x, y = dunif(x, min = 0, max = 50))) +
+    geom_line() +
+    scale_y_continuous(NULL, breaks = NULL) +
+    xlab(expression(sigma))
+
+# Plot heights by sampling from the prior
+sample_mu &lt;- rnorm(1e4, 178, 20)
+sample_sigma &lt;- runif(1e4, 0, 50)
+
+heights &lt;- tibble(x = rnorm(1e4, sample_mu, sample_sigma)) %&gt;%
+    ggplot(aes(x = x)) +
+    geom_density() +
+    scale_y_continuous(NULL, breaks = NULL) +
+    xlab(&quot;h&quot;)
+
+library(gridExtra)
+grid.arrange(prior_mu, prior_sigma, heights, ncol=3)</code></pre>
+<p><img src="/post/2018-03-29-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+</div>
+</div>
+<div id="references" class="section level2">
+<h2>References</h2>
+<p>McElreath, R. (2016). <em>Statistical rethinking: A Bayesian course with examples in R and Stan.</em> Chapman &amp; Hall/CRC Press.</p>
+<p>Kurz, A. S. (2018, March 9). <em>brms, ggplot2 and tidyverse code, by chapter</em>. Retrieved from <a href="https://goo.gl/JbvNTj" class="uri">https://goo.gl/JbvNTj</a></p>
+</div>
