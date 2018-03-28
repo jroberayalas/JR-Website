@@ -29,7 +29,7 @@ How much posterior probability lies between 0.5 and 0.75?
 
 ```{r}
 # define grid
-p_grid <- seq(from=0 , to=1, length.out=1000)
+p_grid <- seq(from=0, to=1, length.out=1000)
 
 # define prior
 prior <- rep(1, 1000)
@@ -71,11 +71,11 @@ rethinking::HPDI(samples, prob=0.8)
 
 > The HPDI also has some disadvantages. HPDI is more computationally intensive than PI and suffers from greater *simulation variance*, which is a fancy way of saying that it is sensitive to how many samples you draw from the posterior. It is also harder to understand and many scientific audiences will not appreciate its features, while they will immediately understand a percentile interval, as ordinary non-Bayesian intervals are nearly always percentile intervals (although of sampling distributions, not posterior distributions). 
 
-> Overall, if the choice of interval type makes a big difference, then you shouldn’t be using intervals to summarize the posterior. Remember, the entire posterior distribution is the Bayesian estimate. It summarizes the relative plausibilities of each possible value of the parameter. Intervals of the distribution are just helpful for summarizing it. **If choice of interval leads to different inferences, then you’d be better off just plotting the entire posterior distribution**.
+> Overall, if the choice of interval type makes a big difference, then you shouldn’t be using intervals to summarize the posterior. Remember, the entire posterior distribution is the Bayesian estimate. It summarizes the relative plausibilities of each possible value of the parameter. Intervals of the distribution are just helpful for summarizing it. **If choice of interval leads to different inferences, then you’d be better off just plotting the entire posterior distribution.**
 
 > **Why 95%?** The most common interval mass in the natural and social sciences is the 95% interval. This interval leaves 5% of the probability outside, corresponding to a 5% chance of the parameter not lying within the interval. This customary interval also reflects the customary threshold for statistical significance, which is 5% or p < 0.05. It is not easy to defend the choice of 95% (5%), outside of pleas to convention. Often, all confidence intervals do is communicate the shape of a distribution. In that case, a series of nested intervals may be more useful than any one interval. For example, why not present 67%, 89%, and 97% intervals, along with the median? Why these values? No reason. They are prime numbers, which makes them easy to remember. And these values avoid 95%, since conventional 95% intervals encourage many readers to conduct unconscious hypothesis tests.
 
-> ***What do confidence intervals mean?**  It is common to hear that a 95% confidence interval means that there is a probability 0.95 that the true parameter value lies within the interval. In strict non-Bayesian statistical inference, such a statement is never correct, because strict non-Bayesian inference forbids using probability to measure uncertainty about parameters. Instead, one should say that if we repeated the study and analysis a very large number of times, then 95% of the computed intervals would contain the true parameter value. But whether you use a Bayesian interpretation or not, **a 95% interval does not contain the true value 95% of the time**. The history of science teaches us that confidence intervals exhibit chronic
+> **What do confidence intervals mean?**  It is common to hear that a 95% confidence interval means that there is a probability 0.95 that the true parameter value lies within the interval. In strict non-Bayesian statistical inference, such a statement is never correct, because strict non-Bayesian inference forbids using probability to measure uncertainty about parameters. Instead, one should say that if we repeated the study and analysis a very large number of times, then 95% of the computed intervals would contain the true parameter value. But whether you use a Bayesian interpretation or not, **a 95% interval does not contain the true value 95% of the time.** The history of science teaches us that confidence intervals exhibit chronic
 overconfidence. The 95% is a *small world* number, only true in the model’s logical world. So it will never apply exactly to the real or *large world*.
 
 ### 3.2.3. Point estimates
@@ -105,3 +105,8 @@ rethinking::dens(w, adj=2.5)
 ```
 
 > Model fitting remains an objective procedure—everyone and every golem conducts Bayesian updating in a way that doesn’t depend upon personal preferences. But model checking is inherently subjective, and this actually allows it to be quite powerful, since subjective knowledge of an empirical domain provides expertise. Expertise in turn allows for imaginative checks of model performance. Since golems have terrible imaginations, we need the freedom to engage our own imaginations. In this way, the objective and subjective work together.
+
+## References
+McElreath, R. (2016). *Statistical rethinking: A Bayesian course with examples in R and Stan.* Chapman & Hall/CRC Press.
+
+Kurz, A. S. (2018, March 9). *brms, ggplot2 and tidyverse code, by chapter*. Retrieved from https://github.com/ASKurz/Statistical_Rethinking_with_brms_ggplot2_and_the_tidyverse

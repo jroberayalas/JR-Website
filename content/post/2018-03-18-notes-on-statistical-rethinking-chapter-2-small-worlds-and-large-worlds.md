@@ -33,7 +33,7 @@ summary: Notes for Chapter 2 of [Statistical Rethinking](http://xcelab.net/rm/st
 3. Evaluate: All statistical models require supervision, leading possibly to model revision.
 
 ### 2.2.2. Bayesian updating
-> There is a widespread superstition that 30 observations are needed before one can use a Gaussian distribution. Why? In non-Bayesian statistical inference, procedures are often justified by the method’s behavior at very large sample sizes, so-called asymptotic behavior. As a result, performance at small samples sizes is questionable. In contrast, Bayesian estimates are valid for any sample size. This does not mean that more data isn’t helpful — it certainly is. Rather, the estimates have a clear and valid interpretation, no matter the sample size. But the price for this power is dependency upon the initial estimates, the prior. If the prior is a bad one, then the resulting inference will be misleading. There’s no free lunch, when it comes to learning about the world. A Bayesian golem must choose an initial plausibility, and a non-Bayesian golem must choose an estimator. Both golems pay for lunch with their assumptions.
+> There is a widespread superstition that 30 observations are needed before one can use a Gaussian distribution. Why? In non-Bayesian statistical inference, procedures are often justified by the method’s behavior at very large sample sizes, so-called asymptotic behavior. As a result, performance at small samples sizes is questionable. In contrast, **Bayesian estimates are valid for any sample size.** This does not mean that more data isn’t helpful — it certainly is. Rather, the estimates have a clear and valid interpretation, no matter the sample size. But the price for this power is dependency upon the initial estimates, the prior. If the prior is a bad one, then the resulting inference will be misleading. **There’s no free lunch, when it comes to learning about the world. A Bayesian golem must choose an initial plausibility, and a non-Bayesian golem must choose an estimator.** Both golems pay for lunch with their assumptions.
 
 ### 2.2.3. Evaluate
 > The model’s certainty is no guarantee that the model is a good one. Models of all sorts — Bayesian or
@@ -79,4 +79,4 @@ The `rethinking` package has the `map` function. MAP stands for Maximum A Poster
 ## References
 McElreath, R. (2016). *Statistical rethinking: A Bayesian course with examples in R and Stan.* Chapman & Hall/CRC Press.
 
-Kurz, A. S. (2018, March 9). *brms, ggplot2 and tidyverse code, by chapter*. Retrieved from https://osf.io/c45bx/
+Kurz, A. S. (2018, March 9). *brms, ggplot2 and tidyverse code, by chapter*. Retrieved from https://github.com/ASKurz/Statistical_Rethinking_with_brms_ggplot2_and_the_tidyverse
