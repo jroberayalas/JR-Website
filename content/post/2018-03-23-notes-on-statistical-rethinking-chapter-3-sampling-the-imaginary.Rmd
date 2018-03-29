@@ -28,13 +28,13 @@ How much posterior probability lies between 0.5 and 0.75?
 
 ```{r}
 # define grid
-p_grid <- seq(from=0, to=1, length.out=1000)
+p_grid <- seq(from = 0, to = 1, length.out = 1000)
 
 # define prior
 prior <- rep(1, 1000)
 
 # compute likelihood at each value in grid
-likelihood <- dbinom(6, size=9, prob=p_grid)
+likelihood <- dbinom(6, size = 9, prob = p_grid)
 
 # compute product of likelihood and prior
 posterior <- likelihood * prior
@@ -43,7 +43,7 @@ posterior <- likelihood * prior
 posterior <- posterior / sum(posterior)
 
 # sample the posterior
-samples <- sample(p_grid, prob=posterior, size=1e4, replace=TRUE)
+samples <- sample(p_grid, prob = posterior, size = 1e4, replace=TRUE)
 
 # ask a question
 sum(samples > 0.5 & samples < 0.75) / 1e4
@@ -65,7 +65,7 @@ To overcome this, we can use the **highest posterior density interval** (HPDI).
 > If you want an interval that best represents the parameter values most consistent with the data, then you want the densest of these intervals The HPDI is the narrowest interval containing the specified probability mass.
 
 ```{r}
-rethinking::HPDI(samples, prob=0.8)
+rethinking::HPDI(samples, prob = 0.8)
 ```
 
 > The HPDI also has some disadvantages. HPDI is more computationally intensive than PI and suffers from greater *simulation variance*, which is a fancy way of saying that it is sensitive to how many samples you draw from the posterior. It is also harder to understand and many scientific audiences will not appreciate its features, while they will immediately understand a percentile interval, as ordinary non-Bayesian intervals are nearly always percentile intervals (although of sampling distributions, not posterior distributions). 

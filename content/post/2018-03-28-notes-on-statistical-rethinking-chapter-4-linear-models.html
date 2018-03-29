@@ -125,10 +125,13 @@ d2 &lt;- d %&gt;% filter(age &gt;= 18) %&gt;% glimpse()</code></pre>
 </blockquote>
 <p>Consider the model:</p>
 <center>
-<span class="math inline">\(\begin{eqnarray} { h }_{ i } &amp; \sim &amp; Normal(\mu ,\sigma) \\ \mu &amp; \sim &amp; Normal(178, 20) \\ \sigma &amp; \sim &amp; Uniform(0,50) \end{eqnarray}\)</span>
+<span class="math inline">\(\begin{eqnarray} { h }_{ i } &amp; \sim &amp; Normal(\mu ,\sigma ) &amp; \text{&lt;- likelihood} \\ \mu &amp; \sim &amp; Normal(178,20) &amp; \text{&lt;- } \mu \text{ prior} \\ \sigma &amp; \sim &amp; Cauchy(0,1) &amp; \text{&lt;- } \sigma \text{ prior} \end{eqnarray}\)</span>
 </center>
 <blockquote>
 <p>The short model above is sometimes described as assuming that the values <span class="math inline">\({ h }_{ i }\)</span> are independent and identically distributed (i.e. i.i.d., iid, or IID). “iid” indicates that each value <span class="math inline">\({ h }_{ i }\)</span> has the same probability function, independent of the other <span class="math inline">\(h\)</span> values and using the same parameters. A moment’s reflection tells us that this is hardly ever true, in a physical sense. Whether measuring the same distance repeatedly or studying a population of heights, it is hard to argue that every measurement is independent of the others. The i.i.d. assumption doesn’t have to seem awkward, however, as long as you remember that probability is inside the golem, not outside in the world. The i.i.d. assumption is about how the golem represents its uncertainty. It is an epistemological assumption. It is not a physical assumption about the world, an ontological one, unless you insist that it is.</p>
+</blockquote>
+<blockquote>
+<p>Note that there’s no reason to expect a hard upper bound on <span class="math inline">\(\sigma\)</span>.</p>
 </blockquote>
 <pre class="r"><code># Plot prior for mu
 prior_mu &lt;- ggplot(data = tibble(x = seq(from = 100, to = 250, by = .1)), 
@@ -157,6 +160,117 @@ heights &lt;- tibble(x = rnorm(1e4, sample_mu, sample_sigma)) %&gt;%
 library(gridExtra)
 grid.arrange(prior_mu, prior_sigma, heights, ncol=3)</code></pre>
 <p><img src="/post/2018-03-28-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+</div>
+<div id="fitting-the-model-with-brm" class="section level3">
+<h3>4.3.5. Fitting the model with <code>brm</code></h3>
+<pre class="r"><code># Detach rethinking package
+detach(package:rethinking, unload = T)
+
+# Load brms
+library(brms)</code></pre>
+<pre><code>## Loading required package: Rcpp</code></pre>
+<pre><code>## Loading &#39;brms&#39; package (version 2.1.0). Useful instructions
+## can be found by typing help(&#39;brms&#39;). A more detailed introduction
+## to the package is available through vignette(&#39;brms_overview&#39;).
+## Run theme_set(theme_default()) to use the default bayesplot theme.</code></pre>
+<pre class="r"><code># Construct the model and set the priors
+m4.1 &lt;- brm(data = d2, family = gaussian(),
+            height ~ 1,
+            prior = c(set_prior(&quot;normal(178, 20)&quot;, class = &quot;Intercept&quot;),
+                      set_prior(&quot;cauchy(0, 1)&quot;, class = &quot;sigma&quot;)),
+            chains = 4, iter = 2000, warmup = 1000, cores = 4)</code></pre>
+<pre><code>## Compiling the C++ model</code></pre>
+<pre><code>## Start sampling</code></pre>
+<pre class="r"><code># Plot the chains
+plot(m4.1)</code></pre>
+<p><img src="/post/2018-03-28-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<pre class="r"><code># Summarise the model
+summary(m4.1, prob = 0.89)</code></pre>
+<pre><code>##  Family: gaussian 
+##   Links: mu = identity; sigma = identity 
+## Formula: height ~ 1 
+##    Data: d2 (Number of observations: 352) 
+## Samples: 4 chains, each with iter = 2000; warmup = 1000; thin = 1; 
+##          total post-warmup samples = 4000
+##     ICs: LOO = NA; WAIC = NA; R2 = NA
+##  
+## Population-Level Effects: 
+##           Estimate Est.Error l-89% CI u-89% CI Eff.Sample Rhat
+## Intercept   154.62      0.42   153.95   155.28       3074 1.00
+## 
+## Family Specific Parameters: 
+##       Estimate Est.Error l-89% CI u-89% CI Eff.Sample Rhat
+## sigma     7.76      0.30     7.29     8.25       3083 1.00
+## 
+## Samples were drawn using sampling(NUTS). For each parameter, Eff.Sample 
+## is a crude measure of effective sample size, and Rhat is the potential 
+## scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
+<p><strong>Note</strong>: <code>Est.Error</code> is equivalent to <code>StdDev</code>.</p>
+</div>
+<div id="sampling-from-a-brm-fit" class="section level3">
+<h3>4.3.6. Sampling from a <code>brm</code> fit</h3>
+<pre class="r"><code># Extract the iterations of the HMC chains and put them in a data frame
+post &lt;- posterior_samples(m4.1)
+
+# Summarise the samples
+t(apply(post[ , 1:2], 2, quantile, probs = c(.5, .055, .945)))</code></pre>
+<pre><code>##                    50%       5.5%      94.5%
+## b_Intercept 154.615247 153.945485 155.283375
+## sigma         7.747493   7.290588   8.252251</code></pre>
+<pre class="r"><code># Using the tidyverse for summarising
+post %&gt;%
+  select(-lp__) %&gt;% 
+  gather(parameter) %&gt;%
+  group_by(parameter) %&gt;%
+  summarise(mean = mean(value),
+            SD   = sd(value),
+            `5.5_percentile`  = quantile(value, probs = .055),
+            `94.5_percentile` = quantile(value, probs = .945)) %&gt;%
+  mutate_if(is.numeric, round, digits = 2)</code></pre>
+<pre><code>## # A tibble: 2 x 5
+##   parameter     mean    SD `5.5_percentile` `94.5_percentile`
+##   &lt;chr&gt;        &lt;dbl&gt; &lt;dbl&gt;            &lt;dbl&gt;             &lt;dbl&gt;
+## 1 b_Intercept 155    0.420           154               155   
+## 2 sigma         7.76 0.300             7.29              8.25</code></pre>
+<pre class="r"><code># The rethinking package has already a function to summarise the samples
+rethinking::precis(post[ , 1:2])</code></pre>
+<pre><code>##               Mean StdDev  |0.89  0.89|
+## b_Intercept 154.62   0.42 153.93 155.26
+## sigma         7.76   0.30   7.28   8.23</code></pre>
+</div>
+</div>
+<div id="adding-a-predictor" class="section level2">
+<h2>4.4. Adding a predictor</h2>
+<center>
+<span class="math inline">\(\begin{eqnarray} { h }_{ i } &amp; \sim &amp; Normal({ \mu }_{ i },\sigma ) &amp; \text{&lt;- likelihood } \\ { \mu }_{ i } &amp; = &amp; \alpha +\beta { x }_{ i } &amp; \text{&lt;- linear model} \\ \alpha &amp; \sim &amp; Normal(178,100) &amp; \text{&lt;- }\alpha \text{ prior } \\ \beta &amp; \sim &amp; Normal(0,10) &amp; \text{&lt;- }\beta \text{ prior } \\ \sigma &amp; \sim &amp; Cauchy(0,1) &amp; \text{&lt;- }\sigma \text{ prior } \end{eqnarray}\)</span>
+</center>
+<blockquote>
+<p>The linear model is asking two questions about the mean of the outcome:</p>
+</blockquote>
+<blockquote>
+<ol style="list-style-type: decimal">
+<li>What is the expected height, when <span class="math inline">\(x_i = 0\)</span>? The parameter <span class="math inline">\(\alpha\)</span> answers this question.</li>
+<li>What is the change in expected height, when <span class="math inline">\(x_i\)</span> changes by 1 unit? The parameter <span class="math inline">\(\beta\)</span> answers this question.</li>
+</ol>
+</blockquote>
+<blockquote>
+<p>The prior for <span class="math inline">\(\beta\)</span> places just as much probability below zero as it does above zero, and when <span class="math inline">\(\beta = 0\)</span>, weight has no relationship to height. Such a prior will pull probability mass towards zero, leading to more conservative estimates than a perfectly flat prior will.</p>
+</blockquote>
+<blockquote>
+<p><strong>What’s the correct prior?</strong> There is no more a uniquely correct prior than there is a uniquely correct likelihood. In choosing priors, there are simple guidelines to get you started. Priors encode states of information before seeing data. So priors allow us to explore the consequences of beginning with different information. In cases in which we have good prior information that discounts the plausibility of some parameter values, we can encode that information directly into priors. When we don’t have such information, we still usually know enough about the plausible range of values. And you can vary the priors and repeat the analysis in order to study how different states of initial information influence inference. Frequently, there are many reasonable choices for a prior, and all of them produce the same inference. And conventional Bayesian priors are conservative, relative to conventional non-Bayesian approaches.</p>
+</blockquote>
+<div id="fitting-the-model" class="section level3">
+<h3>4.4.2. Fitting the model</h3>
+<pre class="r"><code>m4.3 &lt;- brm(height ~ 1 + weight,
+            data = d2,
+            family = gaussian(),
+            prior = c(set_prior(&quot;normal(178,100)&quot;, class = &quot;Intercept&quot;),
+                      set_prior(&quot;normal(0,10)&quot;, class = &quot;b&quot;),
+                      set_prior(&quot;cauchy(0,1)&quot;, class = &quot;sigma&quot;)),
+            chains = 4, iter = 41000, warmup = 40000, cores = 4)
+
+plot(m4.3)</code></pre>
+<p><img src="/post/2018-03-28-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
 </div>
 </div>
 <div id="references" class="section level2">
