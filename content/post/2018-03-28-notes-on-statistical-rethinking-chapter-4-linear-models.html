@@ -196,11 +196,11 @@ summary(m4.1, prob = 0.89)</code></pre>
 ##  
 ## Population-Level Effects: 
 ##           Estimate Est.Error l-89% CI u-89% CI Eff.Sample Rhat
-## Intercept   154.60      0.42   153.91   155.28       3343 1.00
+## Intercept   154.60      0.41   153.95   155.25       3436 1.00
 ## 
 ## Family Specific Parameters: 
 ##       Estimate Est.Error l-89% CI u-89% CI Eff.Sample Rhat
-## sigma     7.75      0.29     7.30     8.23       3205 1.00
+## sigma     7.74      0.30     7.28     8.25       2915 1.00
 ## 
 ## Samples were drawn using sampling(NUTS). For each parameter, Eff.Sample 
 ## is a crude measure of effective sample size, and Rhat is the potential 
@@ -215,8 +215,8 @@ post &lt;- posterior_samples(m4.1)
 # Summarise the samples
 t(apply(post[ , 1:2], 2, quantile, probs = c(.5, .055, .945)))</code></pre>
 <pre><code>##                    50%       5.5%      94.5%
-## b_Intercept 154.600541 153.912137 155.276473
-## sigma         7.736501   7.297812   8.231816</code></pre>
+## b_Intercept 154.600376 153.952029 155.249532
+## sigma         7.731359   7.284642   8.246434</code></pre>
 <pre class="r"><code># Using the tidyverse for summarising
 post %&gt;%
   select(-lp__) %&gt;% 
@@ -230,13 +230,13 @@ post %&gt;%
 <pre><code>## # A tibble: 2 x 5
 ##   parameter     mean    SD `5.5_percentile` `94.5_percentile`
 ##   &lt;chr&gt;        &lt;dbl&gt; &lt;dbl&gt;            &lt;dbl&gt;             &lt;dbl&gt;
-## 1 b_Intercept 155    0.420           154               155   
-## 2 sigma         7.75 0.290             7.30              8.23</code></pre>
+## 1 b_Intercept 155    0.410           154               155   
+## 2 sigma         7.74 0.300             7.28              8.25</code></pre>
 <pre class="r"><code># The rethinking package has already a function to summarise the samples
 rethinking::precis(post[ , 1:2])</code></pre>
 <pre><code>##               Mean StdDev  |0.89  0.89|
-## b_Intercept 154.60   0.42 153.93 155.29
-## sigma         7.75   0.29   7.28   8.20</code></pre>
+## b_Intercept 154.60   0.41 153.98 155.27
+## sigma         7.74   0.30   7.26   8.20</code></pre>
 </div>
 </div>
 <div id="adding-a-predictor" class="section level2">
@@ -290,7 +290,7 @@ posterior_samples(m4.3) %&gt;%
 ## sigma             -0.01     0.02  1.00</code></pre>
 <pre class="r"><code>pairs(m4.3)</code></pre>
 <p><img src="/post/2018-03-28-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-14-1.png" width="672" /></p>
-<p>With centering, we can reduce the correlations among the parameters. Furthermore, by centering the predictor, the estimate for the intercept, <span class="math inline">\(\alpha\)</span>, corresponds to the expected value of the outcome, when the predictor is at its average value.</p>
+<p>With centering, we can reduce the correlations among the parameters. Furthermore, by centering the predictor, the estimate for the intercept <span class="math inline">\(\alpha\)</span> corresponds to the expected value of the outcome, when the predictor is at its average value.</p>
 <pre class="r"><code>d3 &lt;- d2 %&gt;%
     mutate(weight.c = weight - mean(weight))
 
@@ -400,7 +400,7 @@ d2 %&gt;%
 <p><img src="/post/2018-03-28-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-19-1.png" width="672" /></p>
 <p><strong>Note</strong>: The outline for the wide shaded interval is a little jagged. This is the simulation variance in the tails of the sampled Gaussian values. Increase the number of samples to reduce it. With extreme percentiles, it can be very hard to get out all of the jaggedness.</p>
 <blockquote>
-<p><strong>Two kinds of uncertainty</strong>. In the procedure above, we encountered both uncertainty in parameter values and uncertainty in a sampling process. These are distinct concepts, even though they are processed much the same way and end up blended together in the <strong>posterior predictive simulation</strong> (check <a href="https://jroberayalas.netlify.com/post/notes-on-statistical-rethinking-chapter-3-sampling-the-imaginary/">Chapter 3</a>). The posterior distribution is a ranking of the relative plausibilities of every possible combination of parameter values. The distribution of simulated outcomes, like height, is instead a distribution that includes sampling variation from some process that generates Gaussian random variables. This sampling variation is still a model assumption. It’s no more or less objective than the posterior distribution. Both kinds of uncertainty matter, at least sometimes. But it’s important to keep them straight, because they depend upon different model assumptions. Furthermore, it’s possible to view the Gaussian likelihood as a purely epistemological assumption (a device for estimating the mean and variance of a variable), rather than an ontological assumption about what future data will look like. In that case, it may not make complete sense to simulate outcomes.</p>
+<p><strong>Two kinds of uncertainty</strong>. In the procedure above, we encountered both uncertainty in parameter values and uncertainty in a sampling process. These are distinct concepts, even though they are processed much the same way and end up blended together in the <strong>posterior predictive simulation</strong> (check <a href="https://jroberayalas.netlify.com/post/notes-on-statistical-rethinking-chapter-3-sampling-the-imaginary/">Chapter 3</a>). The posterior distribution is a ranking of the relative plausibilities of every possible combination of parameter values. The distribution of simulated outcomes is instead a distribution that includes sampling variation from some process that generates Gaussian random variables. This sampling variation is still a model assumption. It’s no more or less objective than the posterior distribution. Both kinds of uncertainty matter, at least sometimes. But it’s important to keep them straight, because they depend upon different model assumptions. Furthermore, it’s possible to view the Gaussian likelihood as a purely epistemological assumption (a device for estimating the mean and variance of a variable), rather than an ontological assumption about what future data will look like. In that case, it may not make complete sense to simulate outcomes.</p>
 </blockquote>
 </div>
 </div>
