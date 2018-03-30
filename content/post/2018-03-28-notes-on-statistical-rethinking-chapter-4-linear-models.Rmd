@@ -22,8 +22,8 @@ library(tidyverse)
 
 set.seed(1000)
 pos <- 
-  replicate(100, runif(16, -1, 1)) %>%        # Here's the simulation
-  as_tibble() %>%                             # For data manipulation, we'll make this a tibble
+  replicate(100, runif(16, -1, 1)) %>%        # Here is the simulation
+  as_tibble() %>%                             # For data manipulation, we will make this a tibble
   rbind(0, .) %>%                             # Here we add a row of zeros above the simulation results
   mutate(step = 0:16) %>%                     # This adds our step index
   gather(key, value, -step) %>%               # Here we convert the data to the long format
@@ -195,7 +195,7 @@ rethinking::precis(post[ , 1:2])
 
 > The linear model is asking two questions about the mean of the outcome:
 
-> 1. What is the expected height, when $x_i = 0$? The parameter $\alpha$ answers this question.
+> 1. What is the expected height, when $x_i = 0$? The parameter $\alpha$ answers this question. Parameters like $\alpha$ are “intercepts” that tell us the value of $\mu$ when all of the predictor variables have value zero. As a consequence, the value of the intercept is frequently uninterpretable without also studying any $\beta$ parameters.
 2. What is the change in expected height, when $x_i$ changes by 1 unit? The parameter $\beta$ answers this question.
 
 > The prior for $\beta$ places just as much probability below zero as it does above zero, and when $\beta = 0$, weight has no relationship to height. Such a prior will pull probability mass towards zero, leading to more conservative estimates than a perfectly flat prior will.
@@ -203,7 +203,7 @@ rethinking::precis(post[ , 1:2])
 > **What’s the correct prior?** There is no more a uniquely correct prior than there is a uniquely correct likelihood. In choosing priors, there are simple guidelines to get you started. Priors encode states of information before seeing data. So priors allow us to explore the consequences of beginning with different information. In cases in which we have good prior information that discounts the plausibility of some parameter values, we can encode that information directly into priors. When we don’t have such information, we still usually know enough about the plausible range of values. And you can vary the priors and repeat the analysis in order to study how different states of initial information influence inference. Frequently, there are many reasonable choices for a prior, and all of them produce the same inference. And conventional Bayesian priors are conservative, relative to conventional non-Bayesian approaches.
 
 ### 4.4.2. Fitting the model
-```{r message=FALSE}
+```{r message=FALSE, cache=TRUE}
 m4.3 <- brm(height ~ 1 + weight,
             data = d2,
             family = gaussian(),
@@ -213,6 +213,237 @@ m4.3 <- brm(height ~ 1 + weight,
             chains = 4, iter = 41000, warmup = 40000, cores = 4)
 
 plot(m4.3)
+```
+
+### 4.4.3. Interpreting the model fit
+#### 4.4.3.1. Tables of estimates
+> Posterior probabilities of parameter values describe the relative compatibility of different states of the world with the data, according to the model.
+
+```{r}
+# Check the correlations among parameters
+posterior_samples(m4.3) %>%
+    select(-lp__) %>%
+    cor() %>%
+    round(digits = 2)
+
+pairs(m4.3)
+```
+
+With centering, we can reduce the correlations among the parameters. Furthermore, by centering the predictor, the estimate for the intercept, $\alpha$, corresponds to the expected value of
+the outcome, when the predictor is at its average value.
+
+```{r message=FALSE, cache=TRUE}
+d3 <- d2 %>%
+    mutate(weight.c = weight - mean(weight))
+
+m4.4 <- brm(height ~ 1 + weight.c,
+            data = d3,
+            family = gaussian(), # default
+            prior = c(set_prior("normal(178,100)", class = "Intercept"),
+                      set_prior("normal(0,10)", class = "b"),
+                      set_prior("cauchy(0,1)", class = "sigma")),
+            chains = 4, iter = 41000, warmup = 40000, cores = 4)
+
+plot(m4.4)
+```
+
+```{r}
+posterior_samples(m4.4) %>%
+  select(-lp__) %>% 
+  gather(parameter) %>%
+  group_by(parameter) %>%
+  summarise(mean = mean(value),
+            SD   = sd(value),
+            `5.5_percentile`  = quantile(value, probs = .055),
+            `94.5_percentile` = quantile(value, probs = .945)) %>%
+  mutate_if(is.numeric, round, digits = 2)
+
+posterior_samples(m4.4) %>%
+    select(-lp__) %>%
+    cor() %>%
+    round(digits = 2)
+
+pairs(m4.4)
+```
+
+#### 4.4.3.2. Plotting posterior inference against the data
+```{r}
+d2 %>%
+    ggplot(aes(x = weight, y = height)) +
+    theme_bw() +
+    geom_abline(intercept = fixef(m4.3)[1],
+                slope = fixef(m4.3)[2]) +
+  geom_point(shape = 1, size = 2, color = "royalblue") +
+  theme(panel.grid = element_blank())
+```
+
+#### 4.4.3.4. Plotting regression intervals and contours
+**Note**: `brms::fitted()` is the anologue to `rethinking::link()`.
+
+```{r}
+# When you specify summary = F, fitted() returns a matrix of values with as many rows as there were post-warmup iterations across your HMC chains and as many columns as there were cases in your analysis.
+mu <- fitted(m4.3, summary = F)
+
+# Plot regression line and its intervals
+weight_seq <- tibble(weight = seq(from = 25, to = 70, by = 1))
+muSummary <- fitted(m4.3,
+                    newdata = weight_seq,
+                    probs = c(0.055, 0.945)) %>%
+    as_tibble() %>%
+    bind_cols(weight_seq) %>%
+    walk(head)
+
+d2 %>%
+    ggplot(aes(x = weight, y = height)) +
+    geom_ribbon(data = muSummary, 
+                aes(y = Estimate, ymin = `5.5%ile`, ymax = `94.5%ile`),
+                fill = "grey70") +
+    geom_line(data = muSummary,
+              aes(y = Estimate),
+              color = "red") +
+    geom_point(color = "navyblue", shape = 1, size = 1.5, alpha = 2/3) +
+    theme(text = element_text(family = "Times"),
+          panel.grid = element_blank())
+```
+
+#### 4.4.3.5. Prediction intervals
+**Note**: `brms::predict()` is the anologue to `rethinking::sim()`
+
+```{r}
+# The summary information in our data frame is for simulated heights, not distributions of plausible average height, $\mu$
+pred_height <- predict(m4.3,
+                       newdata = weight_seq,
+                       probs = c(0.055, 0.945)) %>%
+    as_tibble() %>%
+    bind_cols(weight_seq)
+
+d2 %>%
+    ggplot(aes(x = weight, y = height)) +
+    geom_ribbon(data = pred_height, 
+                aes(y = Estimate, ymin = `5.5%ile`, ymax = `94.5%ile`),
+                fill = "grey83") +
+    geom_ribbon(data = muSummary, 
+                aes(y = Estimate, ymin = `5.5%ile`, ymax = `94.5%ile`),
+                fill = "grey70") +
+    geom_line(data = muSummary,
+              aes(y = Estimate),
+              color = "red") +
+    geom_point(color = "navyblue", shape = 1, size = 1.5, alpha = 2/3) +
+    theme(text = element_text(family = "Times"),
+          panel.grid = element_blank())
+```
+
+**Note**: The outline for the wide shaded interval is a little jagged. This is the simulation variance in the tails of the sampled Gaussian values. Increase the number of samples to reduce it. With extreme percentiles, it can be very hard to get out all of the jaggedness.
+
+> **Two kinds of uncertainty**. In the procedure above, we encountered both uncertainty in parameter values and uncertainty in a sampling process. These are distinct concepts, even though they are processed much the same way and end up blended together in the **posterior predictive simulation** (check [Chapter 3](https://jroberayalas.netlify.com/post/notes-on-statistical-rethinking-chapter-3-sampling-the-imaginary/)). The posterior distribution is a ranking of the relative plausibilities of every possible combination of parameter values. The distribution of simulated outcomes, like height, is instead a distribution that includes sampling variation from some process that generates Gaussian random variables. This sampling variation is still a model assumption. It’s no more or less objective than the posterior distribution. Both kinds of uncertainty matter, at least sometimes. But it’s important to keep them straight, because they depend upon different model assumptions. Furthermore, it’s possible to view the Gaussian likelihood as a purely epistemological assumption (a device for estimating the mean and variance of a variable), rather than an ontological assumption about what future data will look like. In that case, it may not make complete sense to simulate outcomes.
+
+## 4.5. Polynomial regression
+In general, it's not good to use polynomial regression because polynomials are very hard to interpret. Better would be to have a more mechanistic model of the data, one that builds the non-linear relationship up from a principled beginning.
+
+> Standarization of a predictor  means to first center the variable and then divide it by its standard deviation. This leaves the mean at zero but also rescales the range of the data. This is helpful for two reasons:
+
+> 1. Interpretation might be easier. For a standardized variable, a change of one unit is equivalent to a change of one standard deviation. In many contexts, this is more interesting and more revealing than a one unit change on the natural scale. And once you start making regressions with more than one kind of predictor variable, standardizing all of them makes it easier to compare their relative influence on the outcome, using only estimates. On the other hand, you might want to interpret the data on the natural scale. So standardization can make interpretation harder, not easier. 
+2. More important though are the advantages for fitting the model to the data. When predictor variables have very large values in them, there are sometimes numerical glitches. Even well-known statistical software can suffer from these glitches, leading to mistaken estimates. These problems are very common for polynomial regression, because the square or cube of a large number can be truly massive. Standardizing largely resolves this issue.
+
+```{r}
+d <-
+  d %>%
+  mutate(weight.s = (weight - mean(weight))/sd(weight),
+         weight.s2 = weight.s^2)
+```
+
+Consider the following parabolic model:
+
+<center>$\begin{eqnarray} { h }_{ i } & \sim  & Normal({ \mu  }_{ i },\sigma ) & \text{<- likelihood } \\ { \mu  }_{ i } & = & \alpha +{ \beta  }_{ 1 }{ x }_{ i }+{ \beta  }_{ 2 }{ x }_{ i }^{ 2 } & \text{<- linearmodel } \\ \alpha  & \sim  & Normal(178,100) & \text{<- }\alpha \text{ prior } \\ { \beta  }_{ 1 } & \sim  & Normal(0,10) & \text{<- }{ \beta  }_{ 1 }\text{ prior } \\ { \beta  }_{ 2 } & \sim  & Normal(0,10) & \text{<- }{ \beta  }_{ 2 } \text{ prior} \\ \sigma  & \sim  & Cauchy(0,1) & \text{<- }\sigma \text{ prior } \end{eqnarray}$</center>
+
+```{r}
+d %>%
+    ggplot(aes(x = weight.s, y = height)) +
+    geom_point(color = "navyblue", shape = 1, size = 1.5)
+```
+
+```{r message=FALSE, cache=TRUE}
+m4.5 <- brm(height ~ 1 + weight.s + I(weight.s^2),
+            data = d,
+            prior = c(set_prior("normal(178,100)", class = "Intercept"),
+                      set_prior("normal(0,10)", class = "b"),
+                      set_prior("cauchy(0,1)", class = "sigma")),
+            chains = 4, iter = 2000, warmup = 1000, cores = 4)
+
+plot(m4.5)
+```
+
+```{r}
+posterior_samples(m4.5) %>%
+  select(-lp__) %>% 
+  gather(parameter) %>%
+  group_by(parameter) %>%
+  summarise(mean = mean(value),
+            SD   = sd(value),
+            `5.5_percentile`  = quantile(value, probs = .055),
+            `94.5_percentile` = quantile(value, probs = .945)) %>%
+  mutate_if(is.numeric, round, digits = 2)
+
+posterior_samples(m4.5) %>%
+    select(-lp__) %>%
+    cor() %>%
+    round(digits = 2)
+
+pairs(m4.5)
+```
+
+```{r}
+weight_seq <- data.frame(weight.s = seq(from = -2.2, to = 2, length.out = 30))
+
+muSummary <- fitted(m4.5,
+                    newdata = weight_seq,
+                    probs = c(0.055, 0.945)) %>%
+    as_tibble() %>%
+    bind_cols(weight_seq)
+
+pred_height <- predict(m4.5,
+                       newdata = weight_seq,
+                       probs = c(0.055, 0.945)) %>%
+    as_tibble() %>%
+    bind_cols(weight_seq)
+
+d %>%
+    ggplot(aes(x = weight.s, y = height)) +
+    geom_ribbon(data = pred_height, 
+                aes(y = Estimate, ymin = `5.5%ile`, ymax = `94.5%ile`),
+                fill = "grey83") +
+    geom_ribbon(data = muSummary, 
+                aes(y = Estimate, ymin = `5.5%ile`, ymax = `94.5%ile`),
+                fill = "grey70") +
+    geom_line(data = muSummary,
+              aes(y = Estimate),
+              color = "red") +
+    geom_point(color = "navyblue", shape = 1, size = 1.5, alpha = 2/3) +
+    theme(text = element_text(family = "Times"),
+          panel.grid = element_blank())
+```
+
+```{r}
+# Correct the x scale
+at <- c(-2, -1, 0, 1, 2)
+
+d %>%
+    ggplot(aes(x = weight.s, y = height)) +
+    geom_ribbon(data = pred_height, 
+                aes(y = Estimate, ymin = `5.5%ile`, ymax = `94.5%ile`),
+                fill = "grey83") +
+    geom_ribbon(data = muSummary, 
+                aes(y = Estimate, ymin = `5.5%ile`, ymax = `94.5%ile`),
+                fill = "grey70") +
+    geom_line(data = muSummary,
+              aes(y = Estimate),
+              color = "red") +
+    geom_point(color = "navyblue", shape = 1, size = 1.5, alpha = 2/3) +
+    theme(text = element_text(family = "Times"),
+          panel.grid = element_blank()) +
+    # Here it is!
+    scale_x_continuous(breaks = at,
+                       labels = round(at*sd(d$weight) + mean(d$weight), 1))
 ```
 
 

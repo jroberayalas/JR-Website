@@ -90,7 +90,7 @@ overconfidence. The 95% is a *small world* number, only true in the model’s lo
 
 > Bayesian models are always **generative**, capable of simulating predictions.
 
-### 3.3.2. Model checking. 
+### 3.3.2. Model checking
 > Model checking means (1) ensuring the model fitting worked correctly and (2) evaluating the adequacy of a model for some purpose. Since Bayesian models are always generative, able to simulate observations as well as estimate parameters from observations, once you condition a model on data, you can simulate to examine the model’s empirical expectations.
 
 > After assessing whether the posterior distribution is the correct one, because the software worked correctly, it’s useful to also look for aspects of the data that are not well described by the model’s expectations. **The goal is not to test whether the model’s assumptions are “true,” because all models are false**. Rather, the goal is to assess exactly how the model fails to describe the data, as a path towards model comprehension, revision, and improvement.

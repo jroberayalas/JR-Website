@@ -27,8 +27,8 @@ summary: Notes for Chapter 4 of [Statistical Rethinking](http://xcelab.net/rm/st
 
 set.seed(1000)
 pos &lt;- 
-  replicate(100, runif(16, -1, 1)) %&gt;%        # Here&#39;s the simulation
-  as_tibble() %&gt;%                             # For data manipulation, we&#39;ll make this a tibble
+  replicate(100, runif(16, -1, 1)) %&gt;%        # Here is the simulation
+  as_tibble() %&gt;%                             # For data manipulation, we will make this a tibble
   rbind(0, .) %&gt;%                             # Here we add a row of zeros above the simulation results
   mutate(step = 0:16) %&gt;%                     # This adds our step index
   gather(key, value, -step) %&gt;%               # Here we convert the data to the long format
@@ -196,11 +196,11 @@ summary(m4.1, prob = 0.89)</code></pre>
 ##  
 ## Population-Level Effects: 
 ##           Estimate Est.Error l-89% CI u-89% CI Eff.Sample Rhat
-## Intercept   154.62      0.42   153.95   155.28       3074 1.00
+## Intercept   154.60      0.42   153.91   155.28       3343 1.00
 ## 
 ## Family Specific Parameters: 
 ##       Estimate Est.Error l-89% CI u-89% CI Eff.Sample Rhat
-## sigma     7.76      0.30     7.29     8.25       3083 1.00
+## sigma     7.75      0.29     7.30     8.23       3205 1.00
 ## 
 ## Samples were drawn using sampling(NUTS). For each parameter, Eff.Sample 
 ## is a crude measure of effective sample size, and Rhat is the potential 
@@ -215,8 +215,8 @@ post &lt;- posterior_samples(m4.1)
 # Summarise the samples
 t(apply(post[ , 1:2], 2, quantile, probs = c(.5, .055, .945)))</code></pre>
 <pre><code>##                    50%       5.5%      94.5%
-## b_Intercept 154.615247 153.945485 155.283375
-## sigma         7.747493   7.290588   8.252251</code></pre>
+## b_Intercept 154.600541 153.912137 155.276473
+## sigma         7.736501   7.297812   8.231816</code></pre>
 <pre class="r"><code># Using the tidyverse for summarising
 post %&gt;%
   select(-lp__) %&gt;% 
@@ -231,12 +231,12 @@ post %&gt;%
 ##   parameter     mean    SD `5.5_percentile` `94.5_percentile`
 ##   &lt;chr&gt;        &lt;dbl&gt; &lt;dbl&gt;            &lt;dbl&gt;             &lt;dbl&gt;
 ## 1 b_Intercept 155    0.420           154               155   
-## 2 sigma         7.76 0.300             7.29              8.25</code></pre>
+## 2 sigma         7.75 0.290             7.30              8.23</code></pre>
 <pre class="r"><code># The rethinking package has already a function to summarise the samples
 rethinking::precis(post[ , 1:2])</code></pre>
 <pre><code>##               Mean StdDev  |0.89  0.89|
-## b_Intercept 154.62   0.42 153.93 155.26
-## sigma         7.76   0.30   7.28   8.23</code></pre>
+## b_Intercept 154.60   0.42 153.93 155.29
+## sigma         7.75   0.29   7.28   8.20</code></pre>
 </div>
 </div>
 <div id="adding-a-predictor" class="section level2">
@@ -249,7 +249,7 @@ rethinking::precis(post[ , 1:2])</code></pre>
 </blockquote>
 <blockquote>
 <ol style="list-style-type: decimal">
-<li>What is the expected height, when <span class="math inline">\(x_i = 0\)</span>? The parameter <span class="math inline">\(\alpha\)</span> answers this question.</li>
+<li>What is the expected height, when <span class="math inline">\(x_i = 0\)</span>? The parameter <span class="math inline">\(\alpha\)</span> answers this question. Parameters like <span class="math inline">\(\alpha\)</span> are “intercepts” that tell us the value of <span class="math inline">\(\mu\)</span> when all of the predictor variables have value zero. As a consequence, the value of the intercept is frequently uninterpretable without also studying any <span class="math inline">\(\beta\)</span> parameters.</li>
 <li>What is the change in expected height, when <span class="math inline">\(x_i\)</span> changes by 1 unit? The parameter <span class="math inline">\(\beta\)</span> answers this question.</li>
 </ol>
 </blockquote>
@@ -272,6 +272,255 @@ rethinking::precis(post[ , 1:2])</code></pre>
 plot(m4.3)</code></pre>
 <p><img src="/post/2018-03-28-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
 </div>
+<div id="interpreting-the-model-fit" class="section level3">
+<h3>4.4.3. Interpreting the model fit</h3>
+<div id="tables-of-estimates" class="section level4">
+<h4>4.4.3.1. Tables of estimates</h4>
+<blockquote>
+<p>Posterior probabilities of parameter values describe the relative compatibility of different states of the world with the data, according to the model.</p>
+</blockquote>
+<pre class="r"><code># Check the correlations among parameters
+posterior_samples(m4.3) %&gt;%
+    select(-lp__) %&gt;%
+    cor() %&gt;%
+    round(digits = 2)</code></pre>
+<pre><code>##             b_Intercept b_weight sigma
+## b_Intercept        1.00    -0.99 -0.01
+## b_weight          -0.99     1.00  0.02
+## sigma             -0.01     0.02  1.00</code></pre>
+<pre class="r"><code>pairs(m4.3)</code></pre>
+<p><img src="/post/2018-03-28-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-14-1.png" width="672" /></p>
+<p>With centering, we can reduce the correlations among the parameters. Furthermore, by centering the predictor, the estimate for the intercept, <span class="math inline">\(\alpha\)</span>, corresponds to the expected value of the outcome, when the predictor is at its average value.</p>
+<pre class="r"><code>d3 &lt;- d2 %&gt;%
+    mutate(weight.c = weight - mean(weight))
+
+m4.4 &lt;- brm(height ~ 1 + weight.c,
+            data = d3,
+            family = gaussian(), # default
+            prior = c(set_prior(&quot;normal(178,100)&quot;, class = &quot;Intercept&quot;),
+                      set_prior(&quot;normal(0,10)&quot;, class = &quot;b&quot;),
+                      set_prior(&quot;cauchy(0,1)&quot;, class = &quot;sigma&quot;)),
+            chains = 4, iter = 41000, warmup = 40000, cores = 4)
+
+plot(m4.4)</code></pre>
+<p><img src="/post/2018-03-28-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
+<pre class="r"><code>posterior_samples(m4.4) %&gt;%
+  select(-lp__) %&gt;% 
+  gather(parameter) %&gt;%
+  group_by(parameter) %&gt;%
+  summarise(mean = mean(value),
+            SD   = sd(value),
+            `5.5_percentile`  = quantile(value, probs = .055),
+            `94.5_percentile` = quantile(value, probs = .945)) %&gt;%
+  mutate_if(is.numeric, round, digits = 2)</code></pre>
+<pre><code>## # A tibble: 3 x 5
+##   parameter      mean     SD `5.5_percentile` `94.5_percentile`
+##   &lt;chr&gt;         &lt;dbl&gt;  &lt;dbl&gt;            &lt;dbl&gt;             &lt;dbl&gt;
+## 1 b_Intercept 155     0.270           154               155    
+## 2 b_weight.c    0.900 0.0400            0.840             0.970
+## 3 sigma         5.09  0.190             4.79              5.41</code></pre>
+<pre class="r"><code>posterior_samples(m4.4) %&gt;%
+    select(-lp__) %&gt;%
+    cor() %&gt;%
+    round(digits = 2)</code></pre>
+<pre><code>##             b_Intercept b_weight.c sigma
+## b_Intercept        1.00      -0.01  0.00
+## b_weight.c        -0.01       1.00 -0.01
+## sigma              0.00      -0.01  1.00</code></pre>
+<pre class="r"><code>pairs(m4.4)</code></pre>
+<p><img src="/post/2018-03-28-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-16-1.png" width="672" /></p>
+</div>
+<div id="plotting-posterior-inference-against-the-data" class="section level4">
+<h4>4.4.3.2. Plotting posterior inference against the data</h4>
+<pre class="r"><code>d2 %&gt;%
+    ggplot(aes(x = weight, y = height)) +
+    theme_bw() +
+    geom_abline(intercept = fixef(m4.3)[1],
+                slope = fixef(m4.3)[2]) +
+  geom_point(shape = 1, size = 2, color = &quot;royalblue&quot;) +
+  theme(panel.grid = element_blank())</code></pre>
+<p><img src="/post/2018-03-28-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-17-1.png" width="672" /></p>
+</div>
+<div id="plotting-regression-intervals-and-contours" class="section level4">
+<h4>4.4.3.4. Plotting regression intervals and contours</h4>
+<p><strong>Note</strong>: <code>brms::fitted()</code> is the anologue to <code>rethinking::link()</code>.</p>
+<pre class="r"><code># When you specify summary = F, fitted() returns a matrix of values with as many rows as there were post-warmup iterations across your HMC chains and as many columns as there were cases in your analysis.
+mu &lt;- fitted(m4.3, summary = F)
+
+# Plot regression line and its intervals
+weight_seq &lt;- tibble(weight = seq(from = 25, to = 70, by = 1))
+muSummary &lt;- fitted(m4.3,
+                    newdata = weight_seq,
+                    probs = c(0.055, 0.945)) %&gt;%
+    as_tibble() %&gt;%
+    bind_cols(weight_seq) %&gt;%
+    walk(head)
+
+d2 %&gt;%
+    ggplot(aes(x = weight, y = height)) +
+    geom_ribbon(data = muSummary, 
+                aes(y = Estimate, ymin = `5.5%ile`, ymax = `94.5%ile`),
+                fill = &quot;grey70&quot;) +
+    geom_line(data = muSummary,
+              aes(y = Estimate),
+              color = &quot;red&quot;) +
+    geom_point(color = &quot;navyblue&quot;, shape = 1, size = 1.5, alpha = 2/3) +
+    theme(text = element_text(family = &quot;Times&quot;),
+          panel.grid = element_blank())</code></pre>
+<pre><code>## Warning: Ignoring unknown aesthetics: y</code></pre>
+<p><img src="/post/2018-03-28-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-18-1.png" width="672" /></p>
+</div>
+<div id="prediction-intervals" class="section level4">
+<h4>4.4.3.5. Prediction intervals</h4>
+<p><strong>Note</strong>: <code>brms::predict()</code> is the anologue to <code>rethinking::sim()</code></p>
+<pre class="r"><code># The summary information in our data frame is for simulated heights, not distributions of plausible average height, $\mu$
+pred_height &lt;- predict(m4.3,
+                       newdata = weight_seq,
+                       probs = c(0.055, 0.945)) %&gt;%
+    as_tibble() %&gt;%
+    bind_cols(weight_seq)
+
+d2 %&gt;%
+    ggplot(aes(x = weight, y = height)) +
+    geom_ribbon(data = pred_height, 
+                aes(y = Estimate, ymin = `5.5%ile`, ymax = `94.5%ile`),
+                fill = &quot;grey83&quot;) +
+    geom_ribbon(data = muSummary, 
+                aes(y = Estimate, ymin = `5.5%ile`, ymax = `94.5%ile`),
+                fill = &quot;grey70&quot;) +
+    geom_line(data = muSummary,
+              aes(y = Estimate),
+              color = &quot;red&quot;) +
+    geom_point(color = &quot;navyblue&quot;, shape = 1, size = 1.5, alpha = 2/3) +
+    theme(text = element_text(family = &quot;Times&quot;),
+          panel.grid = element_blank())</code></pre>
+<pre><code>## Warning: Ignoring unknown aesthetics: y
+
+## Warning: Ignoring unknown aesthetics: y</code></pre>
+<p><img src="/post/2018-03-28-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-19-1.png" width="672" /></p>
+<p><strong>Note</strong>: The outline for the wide shaded interval is a little jagged. This is the simulation variance in the tails of the sampled Gaussian values. Increase the number of samples to reduce it. With extreme percentiles, it can be very hard to get out all of the jaggedness.</p>
+<blockquote>
+<p><strong>Two kinds of uncertainty</strong>. In the procedure above, we encountered both uncertainty in parameter values and uncertainty in a sampling process. These are distinct concepts, even though they are processed much the same way and end up blended together in the <strong>posterior predictive simulation</strong> (check <a href="https://jroberayalas.netlify.com/post/notes-on-statistical-rethinking-chapter-3-sampling-the-imaginary/">Chapter 3</a>). The posterior distribution is a ranking of the relative plausibilities of every possible combination of parameter values. The distribution of simulated outcomes, like height, is instead a distribution that includes sampling variation from some process that generates Gaussian random variables. This sampling variation is still a model assumption. It’s no more or less objective than the posterior distribution. Both kinds of uncertainty matter, at least sometimes. But it’s important to keep them straight, because they depend upon different model assumptions. Furthermore, it’s possible to view the Gaussian likelihood as a purely epistemological assumption (a device for estimating the mean and variance of a variable), rather than an ontological assumption about what future data will look like. In that case, it may not make complete sense to simulate outcomes.</p>
+</blockquote>
+</div>
+</div>
+</div>
+<div id="polynomial-regression" class="section level2">
+<h2>4.5. Polynomial regression</h2>
+<p>In general, it’s not good to use polynomial regression because polynomials are very hard to interpret. Better would be to have a more mechanistic model of the data, one that builds the non-linear relationship up from a principled beginning.</p>
+<blockquote>
+<p>Standarization of a predictor means to first center the variable and then divide it by its standard deviation. This leaves the mean at zero but also rescales the range of the data. This is helpful for two reasons:</p>
+</blockquote>
+<blockquote>
+<ol style="list-style-type: decimal">
+<li>Interpretation might be easier. For a standardized variable, a change of one unit is equivalent to a change of one standard deviation. In many contexts, this is more interesting and more revealing than a one unit change on the natural scale. And once you start making regressions with more than one kind of predictor variable, standardizing all of them makes it easier to compare their relative influence on the outcome, using only estimates. On the other hand, you might want to interpret the data on the natural scale. So standardization can make interpretation harder, not easier.</li>
+<li>More important though are the advantages for fitting the model to the data. When predictor variables have very large values in them, there are sometimes numerical glitches. Even well-known statistical software can suffer from these glitches, leading to mistaken estimates. These problems are very common for polynomial regression, because the square or cube of a large number can be truly massive. Standardizing largely resolves this issue.</li>
+</ol>
+</blockquote>
+<pre class="r"><code>d &lt;-
+  d %&gt;%
+  mutate(weight.s = (weight - mean(weight))/sd(weight),
+         weight.s2 = weight.s^2)</code></pre>
+<p>Consider the following parabolic model:</p>
+<center>
+<span class="math inline">\(\begin{eqnarray} { h }_{ i } &amp; \sim &amp; Normal({ \mu }_{ i },\sigma ) &amp; \text{&lt;- likelihood } \\ { \mu }_{ i } &amp; = &amp; \alpha +{ \beta }_{ 1 }{ x }_{ i }+{ \beta }_{ 2 }{ x }_{ i }^{ 2 } &amp; \text{&lt;- linearmodel } \\ \alpha &amp; \sim &amp; Normal(178,100) &amp; \text{&lt;- }\alpha \text{ prior } \\ { \beta }_{ 1 } &amp; \sim &amp; Normal(0,10) &amp; \text{&lt;- }{ \beta }_{ 1 }\text{ prior } \\ { \beta }_{ 2 } &amp; \sim &amp; Normal(0,10) &amp; \text{&lt;- }{ \beta }_{ 2 } \text{ prior} \\ \sigma &amp; \sim &amp; Cauchy(0,1) &amp; \text{&lt;- }\sigma \text{ prior } \end{eqnarray}\)</span>
+</center>
+<pre class="r"><code>d %&gt;%
+    ggplot(aes(x = weight.s, y = height)) +
+    geom_point(color = &quot;navyblue&quot;, shape = 1, size = 1.5)</code></pre>
+<p><img src="/post/2018-03-28-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-21-1.png" width="672" /></p>
+<pre class="r"><code>m4.5 &lt;- brm(height ~ 1 + weight.s + I(weight.s^2),
+            data = d,
+            prior = c(set_prior(&quot;normal(178,100)&quot;, class = &quot;Intercept&quot;),
+                      set_prior(&quot;normal(0,10)&quot;, class = &quot;b&quot;),
+                      set_prior(&quot;cauchy(0,1)&quot;, class = &quot;sigma&quot;)),
+            chains = 4, iter = 2000, warmup = 1000, cores = 4)
+
+plot(m4.5)</code></pre>
+<p><img src="/post/2018-03-28-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-22-1.png" width="672" /></p>
+<pre class="r"><code>posterior_samples(m4.5) %&gt;%
+  select(-lp__) %&gt;% 
+  gather(parameter) %&gt;%
+  group_by(parameter) %&gt;%
+  summarise(mean = mean(value),
+            SD   = sd(value),
+            `5.5_percentile`  = quantile(value, probs = .055),
+            `94.5_percentile` = quantile(value, probs = .945)) %&gt;%
+  mutate_if(is.numeric, round, digits = 2)</code></pre>
+<pre><code>## # A tibble: 4 x 5
+##   parameter        mean    SD `5.5_percentile` `94.5_percentile`
+##   &lt;chr&gt;           &lt;dbl&gt; &lt;dbl&gt;            &lt;dbl&gt;             &lt;dbl&gt;
+## 1 b_Intercept    147    0.360           146               147   
+## 2 b_Iweight.sE2 -  8.42 0.270          -  8.85           -  7.99
+## 3 b_weight.s      21.4  0.280            20.9              21.8 
+## 4 sigma            5.77 0.180             5.49              6.06</code></pre>
+<pre class="r"><code>posterior_samples(m4.5) %&gt;%
+    select(-lp__) %&gt;%
+    cor() %&gt;%
+    round(digits = 2)</code></pre>
+<pre><code>##               b_Intercept b_weight.s b_Iweight.sE2 sigma
+## b_Intercept          1.00      -0.36         -0.74  0.02
+## b_weight.s          -0.36       1.00          0.49 -0.04
+## b_Iweight.sE2       -0.74       0.49          1.00 -0.03
+## sigma                0.02      -0.04         -0.03  1.00</code></pre>
+<pre class="r"><code>pairs(m4.5)</code></pre>
+<p><img src="/post/2018-03-28-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-23-1.png" width="672" /></p>
+<pre class="r"><code>weight_seq &lt;- data.frame(weight.s = seq(from = -2.2, to = 2, length.out = 30))
+
+muSummary &lt;- fitted(m4.5,
+                    newdata = weight_seq,
+                    probs = c(0.055, 0.945)) %&gt;%
+    as_tibble() %&gt;%
+    bind_cols(weight_seq)
+
+pred_height &lt;- predict(m4.5,
+                       newdata = weight_seq,
+                       probs = c(0.055, 0.945)) %&gt;%
+    as_tibble() %&gt;%
+    bind_cols(weight_seq)
+
+d %&gt;%
+    ggplot(aes(x = weight.s, y = height)) +
+    geom_ribbon(data = pred_height, 
+                aes(y = Estimate, ymin = `5.5%ile`, ymax = `94.5%ile`),
+                fill = &quot;grey83&quot;) +
+    geom_ribbon(data = muSummary, 
+                aes(y = Estimate, ymin = `5.5%ile`, ymax = `94.5%ile`),
+                fill = &quot;grey70&quot;) +
+    geom_line(data = muSummary,
+              aes(y = Estimate),
+              color = &quot;red&quot;) +
+    geom_point(color = &quot;navyblue&quot;, shape = 1, size = 1.5, alpha = 2/3) +
+    theme(text = element_text(family = &quot;Times&quot;),
+          panel.grid = element_blank())</code></pre>
+<pre><code>## Warning: Ignoring unknown aesthetics: y
+
+## Warning: Ignoring unknown aesthetics: y</code></pre>
+<p><img src="/post/2018-03-28-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-24-1.png" width="672" /></p>
+<pre class="r"><code># Correct the x scale
+at &lt;- c(-2, -1, 0, 1, 2)
+
+d %&gt;%
+    ggplot(aes(x = weight.s, y = height)) +
+    geom_ribbon(data = pred_height, 
+                aes(y = Estimate, ymin = `5.5%ile`, ymax = `94.5%ile`),
+                fill = &quot;grey83&quot;) +
+    geom_ribbon(data = muSummary, 
+                aes(y = Estimate, ymin = `5.5%ile`, ymax = `94.5%ile`),
+                fill = &quot;grey70&quot;) +
+    geom_line(data = muSummary,
+              aes(y = Estimate),
+              color = &quot;red&quot;) +
+    geom_point(color = &quot;navyblue&quot;, shape = 1, size = 1.5, alpha = 2/3) +
+    theme(text = element_text(family = &quot;Times&quot;),
+          panel.grid = element_blank()) +
+    # Here it is!
+    scale_x_continuous(breaks = at,
+                       labels = round(at*sd(d$weight) + mean(d$weight), 1))</code></pre>
+<pre><code>## Warning: Ignoring unknown aesthetics: y
+
+## Warning: Ignoring unknown aesthetics: y</code></pre>
+<p><img src="/post/2018-03-28-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-25-1.png" width="672" /></p>
 </div>
 <div id="references" class="section level2">
 <h2>References</h2>
