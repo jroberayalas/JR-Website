@@ -101,11 +101,13 @@ d2 %>%
 
 Consider the model:
 
-<center>$\begin{eqnarray} { h }_{ i } & \sim  & Normal(\mu ,\sigma ) & \text{<- likelihood} \\ \mu  & \sim  & Normal(178,20) & \text{<- } \mu \text{ prior} \\ \sigma  & \sim  & Cauchy(0,1) & \text{<- } \sigma \text{ prior} \end{eqnarray}$</center>
+$$\begin{eqnarray} { h }_{ i } & \sim  & Normal(\mu ,\sigma ) & \text{<- likelihood} \\ \mu  & \sim  & Normal(178,20) & \text{<- } \mu \text{ prior} \\ \sigma  & \sim  & Cauchy(0,1) & \text{<- } \sigma \text{ prior} \end{eqnarray}$$
 
 > The short model above is sometimes described as assuming that the values ${ h }_{ i }$ are independent and identically distributed (i.e. i.i.d., iid, or IID). “iid” indicates that each value ${ h }_{ i }$ has the same probability function, independent of the other $h$ values and using the same parameters. A moment’s reflection tells us that this is hardly ever true, in a physical sense. Whether measuring the same distance repeatedly or studying a population of heights, it is hard to argue that every measurement is independent of the others. The i.i.d. assumption doesn’t have to seem awkward, however, as long as you remember that probability is inside the golem, not outside in the world. The i.i.d. assumption is about how the golem represents its uncertainty. It is an epistemological assumption. It is not a physical assumption about the world, an ontological one, unless you insist that it is.
 
-> Note that there’s no reason to expect a hard upper bound on $\sigma$.
+{{% alert note %}}
+There’s no reason to expect a hard upper bound on $\sigma$.
+{{% /alert %}}
 
 ```{r message=FALSE}
 # Plot prior for mu
@@ -160,7 +162,9 @@ plot(m4.1)
 summary(m4.1, prob = 0.89)
 ```
 
-**Note**: `Est.Error` is equivalent to `StdDev`.
+{{% alert note %}}
+`Est.Error` is equivalent to `StdDev`.
+{{% /alert %}}
 
 ### 4.3.6. Sampling from a `brm` fit
 ```{r}
@@ -190,8 +194,7 @@ rethinking::precis(post[ , 1:2])
 ```
 
 ## 4.4. Adding a predictor
-
-<center>$\begin{eqnarray} { h }_{ i } & \sim  & Normal({ \mu  }_{ i },\sigma ) & \text{<- likelihood } \\ { \mu  }_{ i } & = & \alpha +\beta { x }_{ i } & \text{<- linear model} \\ \alpha  & \sim  & Normal(178,100) & \text{<- }\alpha \text{ prior } \\ \beta  & \sim  & Normal(0,10) & \text{<- }\beta \text{ prior } \\ \sigma  & \sim  & Cauchy(0,1) & \text{<- }\sigma \text{ prior } \end{eqnarray}$</center>
+$$\begin{eqnarray} { h }_{ i } & \sim  & Normal({ \mu  }_{ i },\sigma ) & \text{<- likelihood } \\ { \mu  }_{ i } & = & \alpha +\beta { x }_{ i } & \text{<- linear model} \\ \alpha  & \sim  & Normal(178,100) & \text{<- }\alpha \text{ prior } \\ \beta  & \sim  & Normal(0,10) & \text{<- }\beta \text{ prior } \\ \sigma  & \sim  & Cauchy(0,1) & \text{<- }\sigma \text{ prior } \end{eqnarray}$$
 
 > The linear model is asking two questions about the mean of the outcome:
 
@@ -278,7 +281,9 @@ d2 %>%
 ```
 
 #### 4.4.3.4. Plotting regression intervals and contours
-**Note**: `brms::fitted()` is the anologue to `rethinking::link()`.
+{{% alert note %}}
+`brms::fitted()` is the anologue to `rethinking::link()`.
+{{% /alert %}}
 
 ```{r}
 # When you specify summary = F, fitted() returns a matrix of values with as many rows as there were post-warmup iterations across your HMC chains and as many columns as there were cases in your analysis.
@@ -307,7 +312,9 @@ d2 %>%
 ```
 
 #### 4.4.3.5. Prediction intervals
-**Note**: `brms::predict()` is the anologue to `rethinking::sim()`
+{{% alert note %}}
+`brms::predict()` is the anologue to `rethinking::sim()`.
+{{% /alert %}}
 
 ```{r}
 # The summary information in our data frame is for simulated heights, not distributions of plausible average height, $\mu$
@@ -333,7 +340,9 @@ d2 %>%
           panel.grid = element_blank())
 ```
 
-**Note**: The outline for the wide shaded interval is a little jagged. This is the simulation variance in the tails of the sampled Gaussian values. Increase the number of samples to reduce it. With extreme percentiles, it can be very hard to get out all of the jaggedness.
+{{% alert note %}}
+The outline for the wide shaded interval is a little jagged. This is the simulation variance in the tails of the sampled Gaussian values. Increase the number of samples to reduce it. With extreme percentiles, it can be very hard to get out all of the jaggedness.
+{{% /alert %}}
 
 > **Two kinds of uncertainty**. In the procedure above, we encountered both uncertainty in parameter values and uncertainty in a sampling process. These are distinct concepts, even though they are processed much the same way and end up blended together in the **posterior predictive simulation** (check [Chapter 3](https://jroberayalas.netlify.com/post/notes-on-statistical-rethinking-chapter-3-sampling-the-imaginary/)). The posterior distribution is a ranking of the relative plausibilities of every possible combination of parameter values. The distribution of simulated outcomes is instead a distribution that includes sampling variation from some process that generates Gaussian random variables. This sampling variation is still a model assumption. It’s no more or less objective than the posterior distribution. Both kinds of uncertainty matter, at least sometimes. But it’s important to keep them straight, because they depend upon different model assumptions. Furthermore, it’s possible to view the Gaussian likelihood as a purely epistemological assumption (a device for estimating the mean and variance of a variable), rather than an ontological assumption about what future data will look like. In that case, it may not make complete sense to simulate outcomes.
 
@@ -354,7 +363,7 @@ d <-
 
 Consider the following parabolic model:
 
-<center>$\begin{eqnarray} { h }_{ i } & \sim  & Normal({ \mu  }_{ i },\sigma ) & \text{<- likelihood } \\ { \mu  }_{ i } & = & \alpha +{ \beta  }_{ 1 }{ x }_{ i }+{ \beta  }_{ 2 }{ x }_{ i }^{ 2 } & \text{<- linearmodel } \\ \alpha  & \sim  & Normal(178,100) & \text{<- }\alpha \text{ prior } \\ { \beta  }_{ 1 } & \sim  & Normal(0,10) & \text{<- }{ \beta  }_{ 1 }\text{ prior } \\ { \beta  }_{ 2 } & \sim  & Normal(0,10) & \text{<- }{ \beta  }_{ 2 } \text{ prior} \\ \sigma  & \sim  & Cauchy(0,1) & \text{<- }\sigma \text{ prior } \end{eqnarray}$</center>
+$$\begin{eqnarray} { h }_{ i } & \sim  & Normal({ \mu  }_{ i },\sigma ) & \text{<- likelihood } \\ { \mu  }_{ i } & = & \alpha +{ \beta  }_{ 1 }{ x }_{ i }+{ \beta  }_{ 2 }{ x }_{ i }^{ 2 } & \text{<- linear model } \\ \alpha  & \sim  & Normal(178,100) & \text{<- }\alpha \text{ prior } \\ { \beta  }_{ 1 } & \sim  & Normal(0,10) & \text{<- }{ \beta  }_{ 1 }\text{ prior } \\ { \beta  }_{ 2 } & \sim  & Normal(0,10) & \text{<- }{ \beta  }_{ 2 } \text{ prior} \\ \sigma  & \sim  & Cauchy(0,1) & \text{<- }\sigma \text{ prior } \end{eqnarray}$$
 
 ```{r}
 d %>%

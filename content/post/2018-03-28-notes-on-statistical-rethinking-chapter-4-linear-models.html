@@ -124,15 +124,11 @@ d2 &lt;- d %&gt;% filter(age &gt;= 18) %&gt;% glimpse()</code></pre>
 <p>But be careful about choosing the Gaussian distribution only when the plotted outcome variable looks Gaussian to you. Gawking at the raw data, to try to decide how to model them, is usually not a good idea. The data could be a mixture of different Gaussian distributions, for example, and in that case you won’t be able to detect the underlying normality just by eyeballing the outcome distribution. Furthermore, the empirical distribution needn’t be actually Gaussian in order to justify using a Gaussian likelihood.</p>
 </blockquote>
 <p>Consider the model:</p>
-<center>
-<span class="math inline">\(\begin{eqnarray} { h }_{ i } &amp; \sim &amp; Normal(\mu ,\sigma ) &amp; \text{&lt;- likelihood} \\ \mu &amp; \sim &amp; Normal(178,20) &amp; \text{&lt;- } \mu \text{ prior} \\ \sigma &amp; \sim &amp; Cauchy(0,1) &amp; \text{&lt;- } \sigma \text{ prior} \end{eqnarray}\)</span>
-</center>
+<p><span class="math display">\[\begin{eqnarray} { h }_{ i } &amp; \sim  &amp; Normal(\mu ,\sigma ) &amp; \text{&lt;- likelihood} \\ \mu  &amp; \sim  &amp; Normal(178,20) &amp; \text{&lt;- } \mu \text{ prior} \\ \sigma  &amp; \sim  &amp; Cauchy(0,1) &amp; \text{&lt;- } \sigma \text{ prior} \end{eqnarray}\]</span></p>
 <blockquote>
 <p>The short model above is sometimes described as assuming that the values <span class="math inline">\({ h }_{ i }\)</span> are independent and identically distributed (i.e. i.i.d., iid, or IID). “iid” indicates that each value <span class="math inline">\({ h }_{ i }\)</span> has the same probability function, independent of the other <span class="math inline">\(h\)</span> values and using the same parameters. A moment’s reflection tells us that this is hardly ever true, in a physical sense. Whether measuring the same distance repeatedly or studying a population of heights, it is hard to argue that every measurement is independent of the others. The i.i.d. assumption doesn’t have to seem awkward, however, as long as you remember that probability is inside the golem, not outside in the world. The i.i.d. assumption is about how the golem represents its uncertainty. It is an epistemological assumption. It is not a physical assumption about the world, an ontological one, unless you insist that it is.</p>
 </blockquote>
-<blockquote>
-<p>Note that there’s no reason to expect a hard upper bound on <span class="math inline">\(\sigma\)</span>.</p>
-</blockquote>
+<p>{{% alert note %}} There’s no reason to expect a hard upper bound on <span class="math inline">\(\sigma\)</span>. {{% /alert %}}</p>
 <pre class="r"><code># Plot prior for mu
 prior_mu &lt;- ggplot(data = tibble(x = seq(from = 100, to = 250, by = .1)), 
                    aes(x = x, y = dnorm(x, mean = 178, sd = 20))) +
@@ -169,6 +165,7 @@ detach(package:rethinking, unload = T)
 # Load brms
 library(brms)</code></pre>
 <pre><code>## Loading required package: Rcpp</code></pre>
+<pre><code>## Warning: package &#39;Rcpp&#39; was built under R version 3.4.4</code></pre>
 <pre><code>## Loading &#39;brms&#39; package (version 2.1.0). Useful instructions
 ## can be found by typing help(&#39;brms&#39;). A more detailed introduction
 ## to the package is available through vignette(&#39;brms_overview&#39;).
@@ -196,16 +193,16 @@ summary(m4.1, prob = 0.89)</code></pre>
 ##  
 ## Population-Level Effects: 
 ##           Estimate Est.Error l-89% CI u-89% CI Eff.Sample Rhat
-## Intercept   154.60      0.42   153.94   155.25       3203 1.00
+## Intercept   154.61      0.40   153.98   155.26       3454 1.00
 ## 
 ## Family Specific Parameters: 
 ##       Estimate Est.Error l-89% CI u-89% CI Eff.Sample Rhat
-## sigma     7.75      0.30     7.29     8.23       3217 1.00
+## sigma     7.75      0.29     7.31     8.22       3170 1.00
 ## 
 ## Samples were drawn using sampling(NUTS). For each parameter, Eff.Sample 
 ## is a crude measure of effective sample size, and Rhat is the potential 
 ## scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
-<p><strong>Note</strong>: <code>Est.Error</code> is equivalent to <code>StdDev</code>.</p>
+<p>{{% alert note %}} <code>Est.Error</code> is equivalent to <code>StdDev</code>. {{% /alert %}}</p>
 </div>
 <div id="sampling-from-a-brm-fit" class="section level3">
 <h3>4.3.6. Sampling from a <code>brm</code> fit</h3>
@@ -215,8 +212,8 @@ post &lt;- posterior_samples(m4.1)
 # Summarise the samples
 t(apply(post[ , 1:2], 2, quantile, probs = c(.5, .055, .945)))</code></pre>
 <pre><code>##                    50%       5.5%      94.5%
-## b_Intercept 154.601801 153.937227 155.253104
-## sigma         7.745213   7.291252   8.233251</code></pre>
+## b_Intercept 154.609590 153.979622 155.261765
+## sigma         7.736716   7.313118   8.217413</code></pre>
 <pre class="r"><code># Using the tidyverse for summarising
 post %&gt;%
   select(-lp__) %&gt;% 
@@ -230,20 +227,18 @@ post %&gt;%
 <pre><code>## # A tibble: 2 x 5
 ##   parameter     mean    SD `5.5_percentile` `94.5_percentile`
 ##   &lt;chr&gt;        &lt;dbl&gt; &lt;dbl&gt;            &lt;dbl&gt;             &lt;dbl&gt;
-## 1 b_Intercept 155    0.420           154               155   
-## 2 sigma         7.75 0.300             7.29              8.23</code></pre>
+## 1 b_Intercept 155.   0.400           154.              155.  
+## 2 sigma         7.75 0.290             7.31              8.22</code></pre>
 <pre class="r"><code># The rethinking package has already a function to summarise the samples
 rethinking::precis(post[ , 1:2])</code></pre>
 <pre><code>##               Mean StdDev  |0.89  0.89|
-## b_Intercept 154.60   0.42 153.93 155.24
-## sigma         7.75   0.30   7.27   8.20</code></pre>
+## b_Intercept 154.61   0.40 153.98 155.25
+## sigma         7.75   0.29   7.30   8.20</code></pre>
 </div>
 </div>
 <div id="adding-a-predictor" class="section level2">
 <h2>4.4. Adding a predictor</h2>
-<center>
-<span class="math inline">\(\begin{eqnarray} { h }_{ i } &amp; \sim &amp; Normal({ \mu }_{ i },\sigma ) &amp; \text{&lt;- likelihood } \\ { \mu }_{ i } &amp; = &amp; \alpha +\beta { x }_{ i } &amp; \text{&lt;- linear model} \\ \alpha &amp; \sim &amp; Normal(178,100) &amp; \text{&lt;- }\alpha \text{ prior } \\ \beta &amp; \sim &amp; Normal(0,10) &amp; \text{&lt;- }\beta \text{ prior } \\ \sigma &amp; \sim &amp; Cauchy(0,1) &amp; \text{&lt;- }\sigma \text{ prior } \end{eqnarray}\)</span>
-</center>
+<p><span class="math display">\[\begin{eqnarray} { h }_{ i } &amp; \sim  &amp; Normal({ \mu  }_{ i },\sigma ) &amp; \text{&lt;- likelihood } \\ { \mu  }_{ i } &amp; = &amp; \alpha +\beta { x }_{ i } &amp; \text{&lt;- linear model} \\ \alpha  &amp; \sim  &amp; Normal(178,100) &amp; \text{&lt;- }\alpha \text{ prior } \\ \beta  &amp; \sim  &amp; Normal(0,10) &amp; \text{&lt;- }\beta \text{ prior } \\ \sigma  &amp; \sim  &amp; Cauchy(0,1) &amp; \text{&lt;- }\sigma \text{ prior } \end{eqnarray}\]</span></p>
 <blockquote>
 <p>The linear model is asking two questions about the mean of the outcome:</p>
 </blockquote>
@@ -316,7 +311,7 @@ plot(m4.4)</code></pre>
 <pre><code>## # A tibble: 3 x 5
 ##   parameter      mean     SD `5.5_percentile` `94.5_percentile`
 ##   &lt;chr&gt;         &lt;dbl&gt;  &lt;dbl&gt;            &lt;dbl&gt;             &lt;dbl&gt;
-## 1 b_Intercept 155     0.270           154               155    
+## 1 b_Intercept 155.    0.270           154.              155.   
 ## 2 b_weight.c    0.900 0.0400            0.840             0.970
 ## 3 sigma         5.09  0.190             4.79              5.41</code></pre>
 <pre class="r"><code>posterior_samples(m4.4) %&gt;%
@@ -343,7 +338,7 @@ plot(m4.4)</code></pre>
 </div>
 <div id="plotting-regression-intervals-and-contours" class="section level4">
 <h4>4.4.3.4. Plotting regression intervals and contours</h4>
-<p><strong>Note</strong>: <code>brms::fitted()</code> is the anologue to <code>rethinking::link()</code>.</p>
+<p>{{% alert note %}} <code>brms::fitted()</code> is the anologue to <code>rethinking::link()</code>. {{% /alert %}}</p>
 <pre class="r"><code># When you specify summary = F, fitted() returns a matrix of values with as many rows as there were post-warmup iterations across your HMC chains and as many columns as there were cases in your analysis.
 mu &lt;- fitted(m4.3, summary = F)
 
@@ -372,7 +367,7 @@ d2 %&gt;%
 </div>
 <div id="prediction-intervals" class="section level4">
 <h4>4.4.3.5. Prediction intervals</h4>
-<p><strong>Note</strong>: <code>brms::predict()</code> is the anologue to <code>rethinking::sim()</code></p>
+<p>{{% alert note %}} <code>brms::predict()</code> is the anologue to <code>rethinking::sim()</code>. {{% /alert %}}</p>
 <pre class="r"><code># The summary information in our data frame is for simulated heights, not distributions of plausible average height, $\mu$
 pred_height &lt;- predict(m4.3,
                        newdata = weight_seq,
@@ -398,7 +393,7 @@ d2 %&gt;%
 
 ## Warning: Ignoring unknown aesthetics: y</code></pre>
 <p><img src="/post/2018-03-28-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-19-1.png" width="672" /></p>
-<p><strong>Note</strong>: The outline for the wide shaded interval is a little jagged. This is the simulation variance in the tails of the sampled Gaussian values. Increase the number of samples to reduce it. With extreme percentiles, it can be very hard to get out all of the jaggedness.</p>
+<p>{{% alert note %}} The outline for the wide shaded interval is a little jagged. This is the simulation variance in the tails of the sampled Gaussian values. Increase the number of samples to reduce it. With extreme percentiles, it can be very hard to get out all of the jaggedness. {{% /alert %}}</p>
 <blockquote>
 <p><strong>Two kinds of uncertainty</strong>. In the procedure above, we encountered both uncertainty in parameter values and uncertainty in a sampling process. These are distinct concepts, even though they are processed much the same way and end up blended together in the <strong>posterior predictive simulation</strong> (check <a href="https://jroberayalas.netlify.com/post/notes-on-statistical-rethinking-chapter-3-sampling-the-imaginary/">Chapter 3</a>). The posterior distribution is a ranking of the relative plausibilities of every possible combination of parameter values. The distribution of simulated outcomes is instead a distribution that includes sampling variation from some process that generates Gaussian random variables. This sampling variation is still a model assumption. It’s no more or less objective than the posterior distribution. Both kinds of uncertainty matter, at least sometimes. But it’s important to keep them straight, because they depend upon different model assumptions. Furthermore, it’s possible to view the Gaussian likelihood as a purely epistemological assumption (a device for estimating the mean and variance of a variable), rather than an ontological assumption about what future data will look like. In that case, it may not make complete sense to simulate outcomes.</p>
 </blockquote>
@@ -422,9 +417,7 @@ d2 %&gt;%
   mutate(weight.s = (weight - mean(weight))/sd(weight),
          weight.s2 = weight.s^2)</code></pre>
 <p>Consider the following parabolic model:</p>
-<center>
-<span class="math inline">\(\begin{eqnarray} { h }_{ i } &amp; \sim &amp; Normal({ \mu }_{ i },\sigma ) &amp; \text{&lt;- likelihood } \\ { \mu }_{ i } &amp; = &amp; \alpha +{ \beta }_{ 1 }{ x }_{ i }+{ \beta }_{ 2 }{ x }_{ i }^{ 2 } &amp; \text{&lt;- linearmodel } \\ \alpha &amp; \sim &amp; Normal(178,100) &amp; \text{&lt;- }\alpha \text{ prior } \\ { \beta }_{ 1 } &amp; \sim &amp; Normal(0,10) &amp; \text{&lt;- }{ \beta }_{ 1 }\text{ prior } \\ { \beta }_{ 2 } &amp; \sim &amp; Normal(0,10) &amp; \text{&lt;- }{ \beta }_{ 2 } \text{ prior} \\ \sigma &amp; \sim &amp; Cauchy(0,1) &amp; \text{&lt;- }\sigma \text{ prior } \end{eqnarray}\)</span>
-</center>
+<p><span class="math display">\[\begin{eqnarray} { h }_{ i } &amp; \sim  &amp; Normal({ \mu  }_{ i },\sigma ) &amp; \text{&lt;- likelihood } \\ { \mu  }_{ i } &amp; = &amp; \alpha +{ \beta  }_{ 1 }{ x }_{ i }+{ \beta  }_{ 2 }{ x }_{ i }^{ 2 } &amp; \text{&lt;- linear model } \\ \alpha  &amp; \sim  &amp; Normal(178,100) &amp; \text{&lt;- }\alpha \text{ prior } \\ { \beta  }_{ 1 } &amp; \sim  &amp; Normal(0,10) &amp; \text{&lt;- }{ \beta  }_{ 1 }\text{ prior } \\ { \beta  }_{ 2 } &amp; \sim  &amp; Normal(0,10) &amp; \text{&lt;- }{ \beta  }_{ 2 } \text{ prior} \\ \sigma  &amp; \sim  &amp; Cauchy(0,1) &amp; \text{&lt;- }\sigma \text{ prior } \end{eqnarray}\]</span></p>
 <pre class="r"><code>d %&gt;%
     ggplot(aes(x = weight.s, y = height)) +
     geom_point(color = &quot;navyblue&quot;, shape = 1, size = 1.5)</code></pre>
@@ -450,8 +443,8 @@ plot(m4.5)</code></pre>
 <pre><code>## # A tibble: 4 x 5
 ##   parameter        mean    SD `5.5_percentile` `94.5_percentile`
 ##   &lt;chr&gt;           &lt;dbl&gt; &lt;dbl&gt;            &lt;dbl&gt;             &lt;dbl&gt;
-## 1 b_Intercept    147    0.360           146               147   
-## 2 b_Iweight.sE2 -  8.42 0.270          -  8.85           -  7.99
+## 1 b_Intercept    147.   0.360           146.              147.  
+## 2 b_Iweight.sE2   -8.42 0.270            -8.85             -7.99
 ## 3 b_weight.s      21.4  0.280            20.9              21.8 
 ## 4 sigma            5.77 0.180             5.49              6.06</code></pre>
 <pre class="r"><code>posterior_samples(m4.5) %&gt;%
