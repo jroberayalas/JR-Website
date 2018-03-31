@@ -446,7 +446,6 @@ d %>%
                        labels = round(at*sd(d$weight) + mean(d$weight), 1))
 ```
 
-
 ## References
 McElreath, R. (2016). *Statistical rethinking: A Bayesian course with examples in R and Stan.* Chapman & Hall/CRC Press.
 
