@@ -8,7 +8,7 @@ categories:
 tags:
   - bayesian
   - notes
-summary: Notes for Chapter 4 of [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/)
+summary: Notes for Chapter 5 of [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/)
 ---
 
 Multivariate regression can be useful for several reasons: 
