@@ -132,20 +132,20 @@ dfLL %&gt;%
     glimpse()</code></pre>
 <pre><code>## Observations: 4,000
 ## Variables: 7
-## $ V1 &lt;dbl&gt; -6.353431, -6.696489, -6.852660, -7.106943, -6.874477, -6.3...
-## $ V2 &lt;dbl&gt; -6.319304, -6.605869, -6.830819, -7.079085, -6.887005, -6.2...
-## $ V3 &lt;dbl&gt; -6.582701, -6.461469, -6.826911, -6.851801, -7.081520, -6.5...
-## $ V4 &lt;dbl&gt; -6.356792, -6.655955, -6.821925, -6.952974, -6.903588, -6.4...
-## $ V5 &lt;dbl&gt; -6.415585, -6.607567, -6.804482, -6.815707, -7.056214, -7.4...
-## $ V6 &lt;dbl&gt; -6.388764, -6.537840, -6.838850, -6.912083, -7.205562, -7.8...
-## $ V7 &lt;dbl&gt; -9.280646, -8.305840, -8.424597, -8.377968, -9.350525, -7.5...</code></pre>
+## $ V1 &lt;dbl&gt; -6.368281, -6.389910, -6.528932, -6.637431, -6.681496, -6.6...
+## $ V2 &lt;dbl&gt; -6.175478, -6.289038, -6.563799, -6.721313, -6.496955, -6.6...
+## $ V3 &lt;dbl&gt; -6.201504, -6.418831, -7.014113, -7.257260, -6.332912, -6.6...
+## $ V4 &lt;dbl&gt; -6.472713, -6.455305, -6.571900, -6.627280, -6.845613, -6.6...
+## $ V5 &lt;dbl&gt; -7.114848, -6.876115, -7.424192, -7.472485, -7.749708, -6.6...
+## $ V6 &lt;dbl&gt; -7.176614, -6.932022, -7.882174, -8.013059, -7.978993, -6.6...
+## $ V7 &lt;dbl&gt; -8.872813, -8.275602, -7.157636, -7.091105, -7.129735, -9.1...</code></pre>
 <pre class="r"><code>dfLL &lt;-
     dfLL %&gt;%
     mutate(sums     = rowSums(.),
            deviance = -2*sums)</code></pre>
 <pre class="r"><code>quantile(dfLL$deviance, c(.025, .5, .975))</code></pre>
 <pre><code>##      2.5%       50%     97.5% 
-##  95.16831  97.49059 105.35478</code></pre>
+##  95.17027  97.44137 104.76537</code></pre>
 <p>{{% alert note %}} Since we have a posterior distribution of parameter values, there is also a posterior distribution of the deviance. {{% /alert %}}</p>
 <pre class="r"><code>ggplot(dfLL, aes(x = deviance)) +
   theme_classic() +
@@ -221,8 +221,8 @@ dfLL %&gt;%
 </blockquote>
 <p><span class="math display">\[\text{WAIC} = -2\left( \text{lppd} - p_{WAIC} \right)\]</span></p>
 <pre class="r"><code>waic(m6.8)</code></pre>
-<pre><code>##   WAIC  SE
-##  102.2 6.5</code></pre>
+<pre><code>##  WAIC   SE
+##   102 6.39</code></pre>
 <p>{{% alert warning %}} Because WAIC requires splitting up the data into independent observations, it is sometimes hard to define. In time series, you can compute WAIC as if each observation were independent of the others, but it’s not clear what the resulting value means. {{% /alert %}}</p>
 <p>{{% alert warning %}} A more general issue with all of these predictive information criteria: their validity depends upon the predictive task at hand. {{% /alert %}}</p>
 </div>
@@ -394,7 +394,8 @@ compare_ic(w.m6.11, w.m6.12, w.m6.13, w.m6.14)</code></pre>
 <li>SE is the standard error of the WAIC estimate. WAIC is an estimate, and provided the sample size N is large enough, its uncertainty will be well approximated by its standard error. So this SE value isn’t necessarily very precise, but it does provide a check against overconfidence in differences between WAIC values.</li>
 <li>dSE is the standard error of the difference in WAIC between each model and the top-ranked model. So it is missing for the top model.</li>
 </ol>
-<pre class="r"><code>compare_waic &lt;- function (..., sort = &quot;WAIC&quot;, func = &quot;WAIC&quot;) 
+<pre class="r"><code># ... are the fitted models
+compare_waic &lt;- function (..., sort = &quot;WAIC&quot;, func = &quot;WAIC&quot;) 
 {
     mnames &lt;- as.list(substitute(list(...)))[-1L]
     L &lt;- list(...)
