@@ -1,0 +1,116 @@
+---
+title: Machine Learning Practical Tips
+author: José Roberto Ayala Solares
+date: '2018-04-30'
+slug: ML-practical-tips
+categories: []
+tags:
+  - notes
+  - machine learning
+summary: Practical tips from......
+draft: true
+---
+
+[yomero](`r blogdown::shortcode("ref", "#probando")`) {#probando} 
+
+## Feature Preprocessing
+
+### Numeric features
+Scaling: MinMax or Standardization (to make features' impacts on non-tree-based models roughly similar. Tree-based models do not depend on scaling).
+
+Clipping (winsorization): for outliers
+
+Rank transformation: set spaces between proper assorted values to be equal. It can be a better option than MinMax if we have outliers because rank transformation will move the outliers closer to other objects.
+
+Log and Fractional power (i.e. sqrt) transformations: especially useful for neural networks. These can be useful because they drive 2 big values closer to the feature's average value. Also, values around zero become more distinguishable.
+
+Sometimes it is useful to train a model on concatenated data frames produced by different preprocessings, or to mix models different preprocessed data
+
+### Categorical and ordinal features
+Label encoding: map each unique value to different numbers. Non-tree-based models require extra step by creating one-hot encoding.
+
+Frequency encoding: maps categories to their frequencies. This preserves information about values' distribution and can help both linear and tree models. If two features have the same frequency, they become indistinguishable.
+
+One-hot encoding: mainly used for non-tree-based models. It can introduce a lot of sparsity. To save memory, usage of sparse matrices can be benefitial if number of non-zero values is far less than half of total values.
+
+## Feature Generation
+It is powered by prior knowledge and EDA.
+
+Feature interaction between different categorical features. 
+
+## Datetime
+1. Periodicity: second, minute, hour, day number in week, month, season, year
+2. Time since either row-independent (a common date) or row-dependent (number of days left until next holiday / number of days passed since last holiday) event
+3. Difference between dates
+
+## Coordinates
+1. Extract interesting places from the train/test data or additional data
+2. Calculate distances to centers of clusters
+3. Add aggregated statistics for surrounding data
+
+# Missing data
+## Missing value imputation
+1. Replace NA with a value outside fixed value range (performance of linear models and NNs can suffer)
+2. Add a binary feature that indicates missingness 
+2. Replace with mean or median (beneficial for linear models and NN, but not for tree-based models)
+3. Reconstruct the value
+
+Be careful with imputed variables if you want to generate new features from them. Avoid replacing mising values before feature generation.
+
+Outliers can be treated as missing values.
+
+XGBoost and CatBoost can handle NA.
+
+
+# Feature extraction from text and images
+
+
+## For text
+1. Bag of words
+2. Word embeddings (word2vec)
+
+Pipeline for bag of words (BOW):
+* Preprocessing:
+1. Lowercase
+2. Lemmatization
+3. Stemming
+4. Stopwords
+
+* BOW (Ngrams can help to use local context)
+
+* Postprocessing:
+1. Term frequency and Inverse document frequency (TFiDF) transformations
+
+
+## For images
+* Use pretrained models
+* Data augmentation
+
+It is crucial to understand the data generation process to set up a proper validation scheme.
+
+Make distance plots (correlations, time that a feature is bigger than another feature).
+
+Check that the data is shuffle: use mean and rolling mean of a feature or outcome variable.
+
+```{r}
+library(reticulate)
+```
+
+```{python, engine.path="/Applications/anaconda/bin/python"}
+## sys.executable contains full path of the currently running Python interpreter. 
+# import sys
+# print(sys.executable)
+
+import pandas as pd
+
+titanic = pd.read_excel('http://biostat.mc.vanderbilt.edu/wiki/pub/Main/DataSets/titanic3.xls')
+
+print titanic.head()
+```
+
+```{r}
+#library(ggplot2)
+#ggplot(py$titanic, aes(x = age)) +
+#    geom_hist()
+```
+
