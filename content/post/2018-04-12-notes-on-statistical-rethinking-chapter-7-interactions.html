@@ -1,0 +1,646 @@
+---
+title: Notes on Statistical Rethinking (Chapter 7 - Interactions)
+author: José Roberto Ayala Solares
+date: '2018-04-12'
+slug: notes-on-statistical-rethinking-chapter-7-interactions
+categories:
+  - StatisticalRethinking
+tags:
+  - bayesian
+  - notes
+summary: Notes for Chapter 7 of [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/)
+---
+
+
+
+<blockquote>
+<p>Conditioning is one of the most important principles of statistical inference. Posterior distributions are conditional on the data. All model-based inference is conditional on the model.</p>
+</blockquote>
+<blockquote>
+<p>To model deeper conditionality, where the importance of one predictor depends upon another predictor, we need interaction. Interaction is a kind of conditioning, a way of allowing parameters (really their posterior distributions) to be conditional on further aspects of the data.</p>
+</blockquote>
+<div id="building-an-interaction" class="section level2">
+<h2>7.1. Building an interaction</h2>
+<pre class="r"><code>library(rethinking)
+data(rugged)
+d &lt;- rugged
+
+detach(package:rethinking, unload = T)
+library(brms)</code></pre>
+<pre><code>## Warning: package &#39;Rcpp&#39; was built under R version 3.4.4</code></pre>
+<pre class="r"><code>rm(rugged)
+
+library(tidyverse)
+
+# make log version of outcome
+d &lt;- 
+  d %&gt;%
+  mutate(log_gdp = log(rgdppc_2000))
+
+# extract countries with GDP data
+dd &lt;-
+  d %&gt;%
+  filter(complete.cases(rgdppc_2000))
+
+# split countries into Africa and not-Africa
+d.A1 &lt;-
+  dd %&gt;%
+  filter(cont_africa == 1)
+
+d.A0 &lt;-
+  dd %&gt;%
+  filter(cont_africa == 0)</code></pre>
+<pre class="r"><code>m7.1 &lt;-
+  brm(data = d.A1, family = gaussian,
+      log_gdp ~ 1 + rugged,
+      prior = c(set_prior(&quot;normal(8, 100)&quot;, class = &quot;Intercept&quot;),
+                set_prior(&quot;normal(0, 1)&quot;, class = &quot;b&quot;),
+                set_prior(&quot;cauchy(0, 1)&quot;, class = &quot;sigma&quot;)),
+      chains = 4, iter = 2000, warmup = 1000, cores = 4)
+
+m7.2 &lt;-
+  brm(data = d.A0, family = gaussian,
+      log_gdp ~ 1 + rugged,
+      prior = c(set_prior(&quot;normal(8, 100)&quot;, class = &quot;Intercept&quot;),
+                set_prior(&quot;normal(0, 1)&quot;, class = &quot;b&quot;),
+                set_prior(&quot;cauchy(0, 1)&quot;, class = &quot;sigma&quot;)),
+      chains = 4, iter = 2000, warmup = 1000, cores = 4)</code></pre>
+<pre class="r"><code>nd &lt;- 
+    tibble(rugged = seq(from = 0, 
+                        to = 6.3, 
+                        length.out = 30))
+
+fit.7.1 &lt;- 
+    fitted(m7.1, newdata = nd) %&gt;%
+    as_tibble() %&gt;%
+    bind_cols(nd)
+
+fit.7.2 &lt;- 
+    fitted(m7.2, newdata = nd) %&gt;%
+    as_tibble() %&gt;%
+    bind_cols(nd)
+
+# Here we&#39;ll put both in a single data object, with fit.7.1 stacked atop fit.7.2
+fit.both &lt;-
+  bind_rows(fit.7.1, fit.7.2) %&gt;%
+  mutate(cont_africa = rep(c(&quot;Africa&quot;, &quot;not Africa&quot;), each = 30))
+
+library(ggthemes)
+
+dd %&gt;%
+  mutate(cont_africa = ifelse(cont_africa == 1, &quot;Africa&quot;, &quot;not Africa&quot;)) %&gt;%
+  
+  ggplot(aes(x = rugged)) +
+  theme_pander() + 
+  scale_colour_pander() +
+  scale_fill_pander() +
+  geom_ribbon(data = fit.both,
+              aes(ymin = `2.5%ile`, 
+                  ymax = `97.5%ile`,
+                  fill = cont_africa),
+              alpha = 1/4) +
+  geom_line(data = fit.both,
+              aes(y = Estimate, 
+                  color = cont_africa)) +
+  geom_point(aes(y = log_gdp, color = cont_africa),
+             size = 2/3) +
+  scale_x_continuous(expand = c(0, 0)) +
+  labs(x = &quot;Terrain Ruggedness Index&quot;,
+       y = &quot;log GDP from year 2000&quot;) +
+  facet_wrap(~cont_africa) +
+  theme(text = element_text(family = &quot;Times&quot;),
+        legend.position = &quot;none&quot;)</code></pre>
+<p><img src="/post/2018-04-12-notes-on-statistical-rethinking-chapter-7-interactions_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+<p>{{% alert note %}} 150+ color palettes by Canva derived from <a href="https://www.canva.com/learn/100-color-combinations/">photos</a> and <a href="https://www.canva.com/learn/website-color-schemes/">impactful websites</a>. {{% /alert %}}</p>
+<p>There are some reasons for why it is not a good idea to split the data as above:</p>
+<blockquote>
+<ol style="list-style-type: decimal">
+<li>First, there are usually some parameters, such as <span class="math inline">\(\sigma\)</span>, that the model says do not depend in any way upon an African identity for each nation. By splitting the data table, you are hurting the accuracy of the estimates for these parameters, because you are essentially making two less-accurate estimates instead of pooling all of the evidence into one estimate. In effect, you have accidentally assumed that variance differs between African and non-African nations. There’s nothing wrong with that sort of assumption. But you want to avoid accidental assumptions.</li>
+<li>Second, in order to acquire probability statements about the variable you used to split the data, <code>cont_africa</code> in this case, you need to include it in the model. Otherwise, you have only the weakest sort of statistical argument.</li>
+<li>Third, we may want to use information criteria or another method to compare models. For this, we need models that use all of the same data. This means we can’t split the data, but have to make the model split the data.</li>
+<li>There are advantages to borrowing information across categories. This is especially true when sample sizes vary across categories, such that overfitting risk is higher within some categories. Multilevel models borrow information in this way, in order to improve estimates in all categories.</li>
+</ol>
+</blockquote>
+<div id="adding-a-dummy-variable-doesnt-work" class="section level3">
+<h3>7.1.1. Adding a dummy variable doesn’t work</h3>
+<p>The model to fit here is:</p>
+<p><span class="math display">\[\begin{eqnarray} { Y }_{ i } &amp; \sim  &amp; Normal({ \mu  }_{ i },\sigma ) &amp; \text{&lt;- likelihood } \\ { \mu  }_{ i } &amp; = &amp; \alpha +\beta_R { R }_{ i } +\beta_A { A }_{ i } &amp; \text{&lt;- linear model} \end{eqnarray}\]</span></p>
+<pre class="r"><code>m7.3 &lt;-
+  brm(data = dd, family = gaussian,
+      log_gdp ~ 1 + rugged,
+      prior = c(set_prior(&quot;normal(8, 100)&quot;, class = &quot;Intercept&quot;),
+                set_prior(&quot;normal(0, 1)&quot;, class = &quot;b&quot;),
+                set_prior(&quot;uniform(0, 10)&quot;, class = &quot;sigma&quot;)),
+      chains = 4, iter = 2000, warmup = 1000, cores = 4)</code></pre>
+<pre><code>## Warning: It appears as if you have specified an upper bounded prior on a parameter that has no natural upper bound.
+## If this is really what you want, please specify argument &#39;ub&#39; of &#39;set_prior&#39; appropriately.
+## Warning occurred for prior 
+## sigma ~ uniform(0, 10)</code></pre>
+<pre class="r"><code>m7.4 &lt;-
+  brm(data = dd, family = gaussian,
+      log_gdp ~ 1 + rugged + cont_africa,
+      prior = c(set_prior(&quot;normal(8, 100)&quot;, class = &quot;Intercept&quot;),
+                set_prior(&quot;normal(0, 1)&quot;, class = &quot;b&quot;),
+                set_prior(&quot;uniform(0, 10)&quot;, class = &quot;sigma&quot;)),
+      chains = 4, iter = 2000, warmup = 1000, cores = 4)</code></pre>
+<pre><code>## Warning: It appears as if you have specified an upper bounded prior on a parameter that has no natural upper bound.
+## If this is really what you want, please specify argument &#39;ub&#39; of &#39;set_prior&#39; appropriately.
+## Warning occurred for prior 
+## sigma ~ uniform(0, 10)</code></pre>
+<pre class="r"><code>waic(m7.3, m7.4)</code></pre>
+<pre><code>##               WAIC    SE
+## m7.3        539.51 12.92
+## m7.4        476.24 14.81
+## m7.3 - m7.4  63.27 14.53</code></pre>
+<pre class="r"><code>loo(m7.3, m7.4)</code></pre>
+<pre><code>##              LOOIC    SE
+## m7.3        539.51 12.92
+## m7.4        476.25 14.82
+## m7.3 - m7.4  63.26 14.53</code></pre>
+<pre class="r"><code>nd &lt;- 
+    tibble(rugged = rep(seq(from = 0,
+                            to = 6.3, 
+                            length.out = 30),
+                        times = 2),
+           cont_africa = rep(0:1, each = 30))
+
+fit.7.4 &lt;- fitted(m7.4, newdata = nd) %&gt;% 
+    as_tibble() %&gt;%
+    bind_cols(nd) %&gt;%
+    mutate(cont_africa = ifelse(cont_africa == 1, &quot;Africa&quot;, &quot;not Africa&quot;))
+
+dd %&gt;%
+  mutate(cont_africa = ifelse(cont_africa == 1, &quot;Africa&quot;, &quot;not Africa&quot;)) %&gt;%
+  ggplot(aes(x = rugged)) +
+  theme_pander() + 
+  scale_colour_pander() +
+  scale_fill_pander() +
+  geom_ribbon(data = fit.7.4,
+              aes(ymin = `2.5%ile`, 
+                  ymax = `97.5%ile`,
+                  fill = cont_africa,
+                  group = cont_africa),
+              alpha = 1/4) +
+  geom_line(data = fit.7.4,
+              aes(y = Estimate, 
+                  color = cont_africa,
+                  group = cont_africa)) +
+  geom_point(aes(y = log_gdp, color = cont_africa),
+             size = 2/3) +
+  scale_x_continuous(expand = c(0, 0)) +
+  labs(x = &quot;Terrain Ruggedness Index&quot;,
+       y = &quot;log GDP from year 2000&quot;) +
+  theme(text = element_text(family = &quot;Times&quot;),
+        legend.position = c(.69, .94),
+        legend.title = element_blank(),
+        legend.direction = &quot;horizontal&quot;)</code></pre>
+<p><img src="/post/2018-04-12-notes-on-statistical-rethinking-chapter-7-interactions_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+</div>
+<div id="adding-a-linear-interaction-does-work" class="section level3">
+<h3>7.1.2. Adding a linear interaction does work</h3>
+<p>The model to fit here is:</p>
+<p><span class="math display">\[\begin{eqnarray} { Y }_{ i } &amp; \sim  &amp; Normal({ \mu  }_{ i },\sigma ) &amp; \text{&lt;- likelihood } \\ { \mu  }_{ i } &amp; = &amp; \alpha +\gamma_i { R }_{ i } +\beta_A { A }_{ i } &amp; \text{&lt;- linear model of } \mu \\ { \gamma  }_{ i } &amp; = &amp; \beta_R +\beta_{AR} { A }_{ i } &amp; \text{&lt;- linear model of slope} \end{eqnarray}\]</span></p>
+<blockquote>
+<p>The equation for <span class="math inline">\(\gamma_i\)</span> defines the interaction between ruggedness and African nations. It is a linear interaction effect, because the equation <span class="math inline">\(\gamma_i\)</span> is a linear model. By defining the relationship between GDP and ruggedness in this way, you are explicitly modeling the hypothesis that the slope between GDP and ruggedness depends (is conditional) upon whether or not a nation is in Africa.</p>
+</blockquote>
+<blockquote>
+<p>For the priors, notice that I’m using weakly regularizing priors for the coefficients, and a very flat prior for the intercept.</p>
+</blockquote>
+<p>{{% alert note %}} We usually don’t know where the intercept will end up. But if we regularize on the coefficients, then the intercept will be effectively regularized by them. {{% /alert %}}</p>
+<pre class="r"><code>m7.5 &lt;-
+    brm(data = dd, family = gaussian,
+        log_gdp ~ 1 + rugged*cont_africa, # also works 1 + rugged + cont_africa + rugged:cont_africa
+        prior = c(set_prior(&quot;normal(8, 100)&quot;, class = &quot;Intercept&quot;),
+                  set_prior(&quot;normal(0, 1)&quot;, class = &quot;b&quot;),
+                  set_prior(&quot;cauchy(0, 1)&quot;, class = &quot;sigma&quot;)),
+        chains = 4, iter = 2000, warmup = 1000, cores = 4)
+
+plot(m7.5)</code></pre>
+<p><img src="/post/2018-04-12-notes-on-statistical-rethinking-chapter-7-interactions_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<pre class="r"><code># ... are the fitted models
+compare_waic &lt;- function (..., sort = &quot;WAIC&quot;, func = &quot;WAIC&quot;) 
+{
+    mnames &lt;- as.list(substitute(list(...)))[-1L]
+    
+    L &lt;- list(...)
+    if (is.list(L[[1]]) &amp;&amp; length(L) == 1) {L &lt;- L[[1]]}
+    
+    classes &lt;- as.character(sapply(L, class))
+    if (any(classes != classes[1])) {
+        warning(&quot;Not all model fits of same class.\nThis is usually a bad idea, because it implies they were fit by different algorithms.\nCheck yourself, before you wreck yourself.&quot;)
+    }
+    
+    nobs_list &lt;- try(sapply(L, nobs))
+    if (any(nobs_list != nobs_list[1])) {
+        nobs_out &lt;- paste(mnames, nobs_list, &quot;\n&quot;)
+        nobs_out &lt;- concat(nobs_out)
+        warning(concat(&quot;Different numbers of observations found for at least two models.\nInformation criteria only valid for comparing models fit to exactly same observations.\nNumber of observations for each model:\n&quot;, 
+                       nobs_out))
+    }
+    
+    dSE.matrix &lt;- matrix(NA, nrow = length(L), ncol = length(L))
+    
+    if (func == &quot;WAIC&quot;) {
+        WAIC.list &lt;- lapply(L, function(z) WAIC(z, pointwise = TRUE))
+        p.list &lt;- sapply(WAIC.list, function(x) x$p_waic)
+        se.list &lt;- sapply(WAIC.list, function(x) x$se_waic)
+        IC.list &lt;- sapply(WAIC.list, function(x) x$waic)
+        #mnames &lt;- sapply(WAIC.list, function(x) x$model_name)
+        colnames(dSE.matrix) &lt;- mnames
+        rownames(dSE.matrix) &lt;- mnames
+        for (i in 1:(length(L) - 1)) {
+            for (j in (i + 1):length(L)) {
+                waic_ptw1 &lt;- WAIC.list[[i]]$pointwise[ , 3]
+                waic_ptw2 &lt;- WAIC.list[[j]]$pointwise[ , 3]
+                dSE.matrix[i, j] &lt;- as.numeric(sqrt(length(waic_ptw1) * 
+                                                        var(waic_ptw1 - waic_ptw2)))
+                dSE.matrix[j, i] &lt;- dSE.matrix[i, j]
+            }
+        }
+    }
+    
+    #if (!(the_func %in% c(&quot;DIC&quot;, &quot;WAIC&quot;, &quot;LOO&quot;))) {
+    #    IC.list &lt;- lapply(L, function(z) func(z))
+    #}
+    IC.list &lt;- unlist(IC.list)
+    dIC &lt;- IC.list - min(IC.list)
+    w.IC &lt;- rethinking::ICweights(IC.list)
+    if (func == &quot;WAIC&quot;) {
+        topm &lt;- which(dIC == 0)
+        dSEcol &lt;- dSE.matrix[, topm]
+        result &lt;- data.frame(WAIC = IC.list, pWAIC = p.list, 
+                             dWAIC = dIC, weight = w.IC, SE = se.list, dSE = dSEcol)
+    }
+    
+    #if (!(the_func %in% c(&quot;DIC&quot;, &quot;WAIC&quot;, &quot;LOO&quot;))) {
+    #    result &lt;- data.frame(IC = IC.list, dIC = dIC, weight = w.IC)
+    #}
+    rownames(result) &lt;- mnames
+    if (!is.null(sort)) {
+        if (sort != FALSE) {
+            if (sort == &quot;WAIC&quot;) 
+                sort &lt;- func
+            result &lt;- result[order(result[[sort]]), ]
+        }
+    }
+    new(&quot;compareIC&quot;, output = result, dSE = dSE.matrix)
+}
+
+compare_waic(m7.3, m7.4, m7.5)</code></pre>
+<pre><code>##       WAIC pWAIC dWAIC weight    SE   dSE
+## m7.5 469.2   5.0   0.0   0.97 14.60    NA
+## m7.4 476.2   4.2   7.0   0.03 14.81  6.05
+## m7.3 539.5   2.6  70.3   0.00 12.92 14.63</code></pre>
+<p>{{% alert warning %}} The modicum of weight given to m7.4 suggests that the posterior means for the slopes in m7.5 are a little overfit. And the standard error of the difference in WAIC between the top two models is almost the same as the difference itself. There are only so many African countries, after all, so the data are sparse as far as estimating the interaction goes. {{% /alert %}}</p>
+</div>
+<div id="plotting-the-interaction" class="section level3">
+<h3>7.1.3 Plotting the interaction</h3>
+<p>Check also the <a href="{{% ref "#marginal_effects" %}}">Bonus section: Marginal Effects</a>.</p>
+<pre class="r"><code>nd &lt;- 
+    tibble(rugged = rep(seq(from = 0, 
+                            to = 6.3, 
+                            length.out = 30),
+                        times = 2),
+           cont_africa = rep(0:1, each = 30))
+
+fit.7.5 &lt;- fitted(m7.5, newdata = nd) %&gt;% 
+    as_tibble() %&gt;%
+    bind_cols(nd) %&gt;%
+    mutate(cont_africa = ifelse(cont_africa == 1, &quot;Africa&quot;, &quot;not Africa&quot;))
+
+dd %&gt;%
+  mutate(cont_africa = ifelse(cont_africa == 1, &quot;Africa&quot;, &quot;not Africa&quot;)) %&gt;%
+  ggplot(aes(x = rugged)) +
+  theme_pander() + 
+  scale_colour_pander() +
+  scale_fill_pander() +
+  geom_ribbon(data = fit.7.5,
+              aes(ymin = `2.5%ile`, 
+                  ymax = `97.5%ile`,
+                  fill = cont_africa,
+                  group = cont_africa),
+              alpha = 1/4) +
+  geom_line(data = fit.7.5,
+              aes(y = Estimate, 
+                  color = cont_africa,
+                  group = cont_africa)) +
+  geom_point(aes(y = log_gdp, color = cont_africa),
+             size = 2/3) +
+  scale_x_continuous(expand = c(0, 0)) +
+  labs(x = &quot;Terrain Ruggedness Index&quot;,
+       y = &quot;log GDP from year 2000&quot;) +
+  theme(text = element_text(family = &quot;Times&quot;),
+        legend.position = &quot;none&quot;) +
+  facet_wrap(~cont_africa)</code></pre>
+<p><img src="/post/2018-04-12-notes-on-statistical-rethinking-chapter-7-interactions_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+</div>
+<div id="interpreting-an-interaction-estimate" class="section level3">
+<h3>7.1.4. Interpreting an interaction estimate</h3>
+<blockquote>
+<p>Interpreting interaction estimates is tricky. There are two basic reasons to be wary of interpreting tables of posterior means and standard deviations as a way to understanding interactions.</p>
+</blockquote>
+<blockquote>
+<ol style="list-style-type: decimal">
+<li>When you add an interaction to a model, this changes the meanings of the parameters. A “main effect” coefficient in an interaction model does not mean the same thing as a coefficient of the same name in a model without an interaction. Their distributions cannot usually be directly compared.</li>
+<li>Tables of numbers don’t make it easy to fully incorporate uncertainty in our thinking, since covariance among parameters isn’t usually shown. And this gets much harder once the influence of a predictor depends upon multiple parameters.</li>
+</ol>
+</blockquote>
+<div id="parameters-change-meaning" class="section level4">
+<h4>7.1.4.1. Parameters change meaning</h4>
+<pre class="r"><code>p7.5 &lt;- posterior_samples(m7.5)
+
+p7.5 %&gt;%
+    mutate(gamma_Africa = b_rugged + `b_rugged:cont_africa`,
+           gamma_notAfrica = b_rugged) %&gt;%
+    select(gamma_Africa, gamma_notAfrica) %&gt;%
+    gather(key, value) %&gt;%
+    group_by(key) %&gt;%
+    summarise(mean = mean(value))</code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   key               mean
+##   &lt;chr&gt;            &lt;dbl&gt;
+## 1 gamma_Africa     0.166
+## 2 gamma_notAfrica -0.186</code></pre>
+</div>
+<div id="incorporating-uncertainty" class="section level4">
+<h4>7.1.4.2. Incorporating uncertainty</h4>
+<pre class="r"><code>p7.5 %&gt;%
+    mutate(gamma_Africa = b_rugged + `b_rugged:cont_africa`,
+           gamma_notAfrica = b_rugged) %&gt;%
+    select(gamma_Africa, gamma_notAfrica) %&gt;%
+    gather(key, value) %&gt;%
+    ggplot(aes(x = value, group = key, color = key, fill = key)) +
+    theme_pander() + 
+    scale_color_pander() +
+    scale_fill_pander() +
+    geom_density(alpha = 1/4) +
+    scale_x_continuous(expression(gamma), expand = c(0, 0)) +
+    scale_y_continuous(NULL, breaks = NULL) +
+    labs(title = &quot;Terraine Ruggedness slopes&quot;,
+         subtitle = &quot;Blue = African nations, Green = others&quot;) +
+    theme(text = element_text(family = &quot;Times&quot;))</code></pre>
+<p><img src="/post/2018-04-12-notes-on-statistical-rethinking-chapter-7-interactions_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
+<p>{{% alert note %}} The distributions in the figure are marginal, like silhouettes of each distribution, ignoring all of the other dimensions in the posterior. {{% /alert %}}</p>
+<p>What proportion of these differences is below zero?</p>
+<pre class="r"><code>p7.5 %&gt;%
+    mutate(gamma_Africa = b_rugged + `b_rugged:cont_africa`,
+           gamma_notAfrica = b_rugged,
+           diff = gamma_Africa - gamma_notAfrica) %&gt;%
+    summarise(Proportion_of_the_difference_below_0 = sum(diff &lt; 0)/length(diff))</code></pre>
+<pre><code>##   Proportion_of_the_difference_below_0
+## 1                              0.00375</code></pre>
+<blockquote>
+<p>So conditional on this model and these data, it’s highly implausible that the slope association ruggedness with log-GDP is lower inside Africa than outside it. In other words, what the golem is telling is that it is very skeptical of the notion that <span class="math inline">\(\gamma\)</span> within Africa is lower than <span class="math inline">\(\gamma\)</span> outside of Africa. How skeptical? Of all the possible states of the world it knows about, only a 0.36% of them are consistent with both the data and the claim that <span class="math inline">\(\gamma\)</span> in Africa is less than <span class="math inline">\(\gamma\)</span> outside Africa. Your golem is skeptical, but it’s usually a good idea for you to remain skeptical of your golem.</p>
+</blockquote>
+</div>
+</div>
+</div>
+<div id="symmetry-of-the-linear-interaction" class="section level2">
+<h2>7.2. Symmetry of the linear interaction</h2>
+<blockquote>
+<p>For the model above, the interaction has two equally valid phrasings:</p>
+</blockquote>
+<blockquote>
+<ol style="list-style-type: decimal">
+<li>How much does the influence of ruggedness (on GDP) depend upon whether the nation is in Africa?</li>
+<li>How much does the influence of being in Africa (on GDP) depend upon ruggedness?</li>
+</ol>
+</blockquote>
+<pre class="r"><code>nd &lt;- 
+    tibble(rugged = rep(range(dd$rugged), times = 2),
+           cont_africa = rep(c(0,1), each = 2),
+           ruggedness = rep(c(&quot;Minimum&quot;, &quot;Maximum&quot;), times = 2))
+
+fit.7.5 &lt;- fitted(m7.5, newdata = nd) %&gt;% 
+    as_tibble() %&gt;%
+    bind_cols(nd) %&gt;%
+    mutate(cont_africa = ifelse(cont_africa == 1, &quot;Africa&quot;, &quot;not Africa&quot;))
+
+dd %&gt;%
+    mutate(cont_africa = ifelse(cont_africa == 1, &quot;Africa&quot;, &quot;not Africa&quot;)) %&gt;%
+    ggplot(aes(x = cont_africa)) +
+    theme_pander() + 
+    scale_colour_pander() +
+    scale_fill_pander() +
+    geom_point(aes(y = log_gdp),
+             size = 2/3) +
+    geom_ribbon(data = fit.7.5,
+              aes(ymin = `2.5%ile`, 
+                  ymax = `97.5%ile`,
+                  fill = ruggedness,
+                  group = ruggedness),
+              alpha = 1/4) +
+    geom_line(data = fit.7.5,
+              aes(y = Estimate, 
+                  color = ruggedness,
+                  group = ruggedness)) +
+    labs(x = &quot;Continent&quot;,
+       y = &quot;log GDP from year 2000&quot;) +
+    theme(text = element_text(family = &quot;Times&quot;))</code></pre>
+<p><img src="/post/2018-04-12-notes-on-statistical-rethinking-chapter-7-interactions_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
+</div>
+<div id="continuous-interactions" class="section level2">
+<h2>7.3. Continuous interactions</h2>
+<p>Benefits of centering prediction variables:</p>
+<blockquote>
+<ol style="list-style-type: decimal">
+<li>First, centering the prediction variables can make it much easier to lean on the coefficients alone in understanding the model, especially when you want to compare the estimates from models with and without an interaction.</li>
+<li>Second, sometimes model fitting has a hard time with uncentered variables. Centering (and possibly also standardizing) the data before fitting the model can help you achieve a faster and more reliable set of estimates.</li>
+</ol>
+</blockquote>
+<div id="the-data" class="section level3">
+<h3>7.3.1. The data</h3>
+<pre class="r"><code>library(rethinking)
+data(tulips)
+d &lt;- tulips
+detach(package:rethinking, unload = T)
+rm(tulips)
+glimpse(d)</code></pre>
+<pre><code>## Observations: 27
+## Variables: 4
+## $ bed    &lt;fct&gt; a, a, a, a, a, a, a, a, a, b, b, b, b, b, b, b, b, b, c...
+## $ water  &lt;int&gt; 1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 1, 1, 2, 2, 2, 3, 3, 3, 1...
+## $ shade  &lt;int&gt; 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1...
+## $ blooms &lt;dbl&gt; 0.00, 0.00, 111.04, 183.47, 59.16, 76.75, 224.97, 83.77...</code></pre>
+</div>
+<div id="the-un-centered-models" class="section level3">
+<h3>7.3.2. The un-centered models</h3>
+<p>{{% alert note %}} Priors that look very flat may not actually be, because “flat” is always relative to the likelihood. {{% /alert %}}</p>
+<pre class="r"><code>m7.6 &lt;-
+  brm(data = d, family = gaussian,
+      blooms ~ 1 + water + shade,
+      prior = c(set_prior(&quot;normal(0, 100)&quot;, class = &quot;Intercept&quot;),
+                set_prior(&quot;normal(0, 100)&quot;, class = &quot;b&quot;),
+                set_prior(&quot;cauchy(0, 10)&quot;, class = &quot;sigma&quot;)),
+      iter = 2000, warmup = 1000, cores = 4, chains = 4,
+      control = list(adapt_delta = 0.9))
+
+m7.7 &lt;-
+  brm(data = d, family = gaussian,
+      blooms ~ 1 + water + shade + water:shade,
+      prior = c(set_prior(&quot;normal(0, 100)&quot;, class = &quot;Intercept&quot;),
+                set_prior(&quot;normal(0, 100)&quot;, class = &quot;b&quot;),
+                set_prior(&quot;cauchy(0, 10)&quot;, class = &quot;sigma&quot;)),
+      iter = 2000, warmup = 1000, cores = 4, chains = 4,
+      control = list(adapt_delta = 0.9))</code></pre>
+<pre class="r"><code>fixef(m7.6) %&gt;% round(digits = 2)</code></pre>
+<pre><code>##           Estimate Est.Error 2.5%ile 97.5%ile
+## Intercept    60.84     42.18  -22.16   143.02
+## water        73.84     14.28   45.08   101.82
+## shade       -40.65     14.77  -69.40   -11.42</code></pre>
+<pre class="r"><code>fixef(m7.7) %&gt;% round(digits = 2)</code></pre>
+<pre><code>##             Estimate Est.Error 2.5%ile 97.5%ile
+## Intercept    -108.49     60.99 -222.70    15.56
+## water         160.72     28.47  103.32   214.32
+## shade          44.72     28.28  -12.77    98.16
+## water:shade   -43.62     13.20  -67.61   -15.83</code></pre>
+</div>
+<div id="center-and-re-estimate" class="section level3">
+<h3>7.3.3. Center and re-estimate</h3>
+<pre class="r"><code>d &lt;-
+  d %&gt;%
+  mutate(shade.c = shade - mean(shade),
+         water.c = water - mean(water))
+
+m7.8 &lt;-
+  brm(data = d, family = gaussian,
+      blooms ~ 1 + water.c + shade.c,
+      prior = c(set_prior(&quot;normal(130, 100)&quot;, class = &quot;Intercept&quot;),
+                set_prior(&quot;normal(0, 100)&quot;, class = &quot;b&quot;),
+                set_prior(&quot;cauchy(0, 10)&quot;, class = &quot;sigma&quot;)),
+      chains = 4, iter = 2000, warmup = 1000, cores = 4,
+      control = list(adapt_delta = 0.9))
+
+m7.9 &lt;-
+  brm(data = d, family = gaussian,
+      blooms ~ 1 + water.c + shade.c + water.c:shade.c,
+      prior = c(set_prior(&quot;normal(130, 100)&quot;, class = &quot;Intercept&quot;),
+                set_prior(&quot;normal(0, 100)&quot;, class = &quot;b&quot;),
+                set_prior(&quot;cauchy(0, 10)&quot;, class = &quot;sigma&quot;)),
+      chains = 4, iter = 2000, warmup = 1000, cores = 4,
+      control = list(adapt_delta = 0.9))</code></pre>
+<pre class="r"><code>fixef(m7.8) %&gt;% round(digits = 2)</code></pre>
+<pre><code>##           Estimate Est.Error 2.5%ile 97.5%ile
+## Intercept   128.77     11.89  105.55   152.07
+## water.c      74.07     14.41   45.23   102.86
+## shade.c     -40.86     14.49  -69.29   -12.09</code></pre>
+<pre class="r"><code>fixef(m7.9) %&gt;% round(digits = 2)</code></pre>
+<pre><code>##                 Estimate Est.Error 2.5%ile 97.5%ile
+## Intercept         129.02      9.82  109.80   148.10
+## water.c            74.62     11.86   50.25    97.61
+## shade.c           -41.39     12.04  -64.40   -17.67
+## water.c:shade.c   -52.02     14.67  -80.95   -23.31</code></pre>
+<p>The explanation of the coefficients is as follows:</p>
+<blockquote>
+<ul>
+<li>The Intercept is the expected value of blooms when both water and shade are at their average values. Their average values are both zero (0), because they were centered before fitting the model.</li>
+<li>The estimate <code>water.c</code> is the expected change in blooms when water increases by one unit and shade is at its average value (of zero). This parameter does not tell you the expected rate of change for any other value of shade. This estimate suggests that when shade is at its average value, increasing water is highly beneficial to blooms.</li>
+<li>The estimate <code>shade.c</code> is the expected change in blooms when shade increases by one unit and water is at its average value (of zero). This parameter does not tell you the expected rate of change for any other value of water. This estimate suggests that when water is at its average value, increasing shade is highly detrimental to blooms.</li>
+<li>The estimate <code>water.c:shade.c</code> is the interaction effect. Like all linear interactions, it can be explained in more than one way. First, the estimate tells us the expected change in the influence of water on blooms when increasing shade by one unit. Second, it tells us the expected change in the influence of shade on blooms when increasing water by one unit. So why is the interaction estimate, <code>water.c:shade.c</code>, negative? The short answer is that water and shade have opposite effects on blooms, but that each also makes the other more important to the outcome.</li>
+</ul>
+</blockquote>
+</div>
+<div id="plotting-implied-predictions" class="section level3">
+<h3>7.3.4. Plotting implied predictions</h3>
+<p>Triptych plots are very handy for understanding the impact of interactions.</p>
+<pre class="r"><code># loop over values of waterC and plot predictions
+shade.seq &lt;- -1:1
+
+for(w in -1:1){
+  # defining the subset of the original data
+  dt &lt;- d[d$water.c == w, ]
+  # defining our new data
+  nd &lt;- tibble(water.c = w, shade.c = shade.seq)
+  # using our sampling skills, like before
+  fit.7.9 &lt;- fitted(m7.9, newdata = nd) %&gt;%
+    as_tibble() %&gt;%
+    bind_cols(nd)
+  
+  # specifying our custom plot
+  fig &lt;- ggplot() + # can&#39;t seem to get the name to work dynamically (e.g., paste(&quot;fig&quot;, w, sep = &quot;_&quot;) returns an error). Hit a brother up if you can figure out how to code this correctly such that the loop returns three objects: fig_-1, fig_0, and fig_1
+    theme_pander() + 
+    geom_ribbon(data = fit.7.9, 
+                aes(x = shade.c,
+                    ymin = `2.5%ile`,
+                    ymax = `97.5%ile`), 
+                fill = &quot;#CC79A7&quot;, alpha = 1/5) +
+    geom_line(data = fit.7.9, aes(x = shade.c, y = Estimate), 
+              color = &quot;#CC79A7&quot;) +
+    geom_point(data = dt, aes(x = shade.c, y = blooms),
+               color = &quot;#CC79A7&quot;) +
+    coord_cartesian(xlim = c(-1, 1), ylim = c(0, 350)) +
+    scale_x_continuous(breaks = c(-1, 0, 1)) +
+    labs(x = &quot;Shade (centered)&quot;, y = &quot;Blooms&quot;, 
+         title = paste(&quot;Water (centered) =&quot;, w)) +
+    theme(text = element_text(family = &quot;Times&quot;))
+  
+  # plotting that joint
+  plot(fig)
+}</code></pre>
+<p><img src="/post/2018-04-12-notes-on-statistical-rethinking-chapter-7-interactions_files/figure-html/unnamed-chunk-21-1.png" width="672" /><img src="/post/2018-04-12-notes-on-statistical-rethinking-chapter-7-interactions_files/figure-html/unnamed-chunk-21-2.png" width="672" /><img src="/post/2018-04-12-notes-on-statistical-rethinking-chapter-7-interactions_files/figure-html/unnamed-chunk-21-3.png" width="672" /></p>
+<p>{{% alert note %}} Interaction terms can be visualized using the following code:</p>
+<pre class="r"><code>x &lt;- z &lt;- w &lt;- 1
+colnames( model.matrix(~x*z*w) )</code></pre>
+<p>{{% /alert %}}</p>
+</div>
+</div>
+<div id="marginal_effects" class="section level2">
+<h2>Bonus: Marginal Effects</h2>
+<p>The brms package includes the <code>marginal_effects()</code> function as a convenient way to look at simple effects and two-way interactions.</p>
+<pre class="r"><code>marginal_effects(m7.3)</code></pre>
+<p><img src="/post/2018-04-12-notes-on-statistical-rethinking-chapter-7-interactions_files/figure-html/unnamed-chunk-23-1.png" width="672" /></p>
+<pre class="r"><code>plot(marginal_effects(m7.3, spaghetti = T, nsamples = 200),
+     points = T,
+     point_args = c(alpha = 1/2, size = 1))</code></pre>
+<p><img src="/post/2018-04-12-notes-on-statistical-rethinking-chapter-7-interactions_files/figure-html/unnamed-chunk-24-1.png" width="672" /></p>
+<pre class="r"><code>d_factor &lt;-
+  m7.4$data %&gt;% 
+  mutate(cont_africa = factor(cont_africa))
+
+m7.4_factor &lt;-
+  brm(data = d_factor, family = gaussian,
+      log_gdp ~ 1 + rugged + cont_africa,
+      prior = c(set_prior(&quot;normal(8, 100)&quot;, class = &quot;Intercept&quot;),
+                set_prior(&quot;normal(0, 1)&quot;, class = &quot;b&quot;),
+                set_prior(&quot;cauchy(0, 10)&quot;, class = &quot;sigma&quot;)),
+      chains = 4, iter = 2000, warmup = 1000, cores = 4)
+
+d_factor &lt;-
+  m7.5$data %&gt;% 
+  mutate(cont_africa = factor(cont_africa))
+
+m7.5_factor &lt;-
+  brm(data = d_factor, family = gaussian,
+      log_gdp ~ 1 + rugged*cont_africa,
+      prior = c(set_prior(&quot;normal(8, 100)&quot;, class = &quot;Intercept&quot;),
+                set_prior(&quot;normal(0, 1)&quot;, class = &quot;b&quot;),
+                set_prior(&quot;cauchy(0, 10)&quot;, class = &quot;sigma&quot;)),
+      chains = 4, iter = 2000, warmup = 1000, cores = 4)</code></pre>
+<pre class="r"><code># plot(marginal_effects(m7.4_factor))
+
+# marginal_effects(b7.5_factor, probs = c(.25, .75))
+
+plot(marginal_effects(m7.5_factor,
+                      effects = &quot;rugged:cont_africa&quot;, 
+                      spaghetti = T, nsamples = 150),
+     points = T,
+     point_args = c(alpha = 2/3, size = 1), mean = F)</code></pre>
+<p><img src="/post/2018-04-12-notes-on-statistical-rethinking-chapter-7-interactions_files/figure-html/unnamed-chunk-26-1.png" width="672" /></p>
+<pre class="r"><code>ic &lt;- list(water.c = c(-1, 0, 1))
+plot(marginal_effects(m7.9, 
+                      effects = &quot;shade.c:water.c&quot;,
+                      int_conditions = ic),
+     points = T)</code></pre>
+<p><img src="/post/2018-04-12-notes-on-statistical-rethinking-chapter-7-interactions_files/figure-html/unnamed-chunk-27-1.png" width="672" /></p>
+<pre class="r"><code>ic &lt;- list(shade.c = c(-1, 0, 1))
+plot(marginal_effects(m7.9, 
+                      effects = &quot;water.c:shade.c&quot;,
+                      int_conditions = ic),
+     points = T)</code></pre>
+<p><img src="/post/2018-04-12-notes-on-statistical-rethinking-chapter-7-interactions_files/figure-html/unnamed-chunk-28-1.png" width="672" /></p>
+</div>
+<div id="references" class="section level2">
+<h2>References</h2>
+<p>McElreath, R. (2016). <em>Statistical rethinking: A Bayesian course with examples in R and Stan.</em> Chapman &amp; Hall/CRC Press.</p>
+<p>Kurz, A. S. (2018, March 9). <em>brms, ggplot2 and tidyverse code, by chapter</em>. Retrieved from <a href="https://goo.gl/JbvNTj" class="uri">https://goo.gl/JbvNTj</a></p>
+</div>

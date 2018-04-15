@@ -343,15 +343,15 @@ I replicated the `compare` function from the `rethinking` package. It returns a 
 compare_waic <- function (..., sort = "WAIC", func = "WAIC") 
 {
     mnames <- as.list(substitute(list(...)))[-1L]
+    
     L <- list(...)
     if (is.list(L[[1]]) && length(L) == 1) {L <- L[[1]]}
-    #mnames <- match.call()
-    #mnames <- as.character(mnames)[2:(length(L) + 1)]
-    #the_func <- deparse(substitute(func))
+    
     classes <- as.character(sapply(L, class))
     if (any(classes != classes[1])) {
         warning("Not all model fits of same class.\nThis is usually a bad idea, because it implies they were fit by different algorithms.\nCheck yourself, before you wreck yourself.")
     }
+    
     nobs_list <- try(sapply(L, nobs))
     if (any(nobs_list != nobs_list[1])) {
         nobs_out <- paste(mnames, nobs_list, "\n")
@@ -359,6 +359,7 @@ compare_waic <- function (..., sort = "WAIC", func = "WAIC")
         warning(concat("Different numbers of observations found for at least two models.\nInformation criteria only valid for comparing models fit to exactly same observations.\nNumber of observations for each model:\n", 
                        nobs_out))
     }
+    
     dSE.matrix <- matrix(NA, nrow = length(L), ncol = length(L))
     
     if (func == "WAIC") {
