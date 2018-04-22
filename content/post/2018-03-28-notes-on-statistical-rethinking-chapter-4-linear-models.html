@@ -120,9 +120,7 @@ d2 &lt;- d %&gt;% filter(age &gt;= 18) %&gt;% glimpse()</code></pre>
     ggplot(aes(x = height)) + 
     geom_density()</code></pre>
 <p><img src="/post/2018-03-28-notes-on-statistical-rethinking-chapter-4-linear-models_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
-<blockquote>
-<p>But be careful about choosing the Gaussian distribution only when the plotted outcome variable looks Gaussian to you. Gawking at the raw data, to try to decide how to model them, is usually not a good idea. The data could be a mixture of different Gaussian distributions, for example, and in that case you won’t be able to detect the underlying normality just by eyeballing the outcome distribution. Furthermore, the empirical distribution needn’t be actually Gaussian in order to justify using a Gaussian likelihood.</p>
-</blockquote>
+<p>{{% alert warning %}} But be careful about choosing the Gaussian distribution only when the plotted outcome variable looks Gaussian to you. Gawking at the raw data, to try to decide how to model them, is usually not a good idea. The data could be a mixture of different Gaussian distributions, for example, and in that case you won’t be able to detect the underlying normality just by eyeballing the outcome distribution. Furthermore, the empirical distribution needn’t be actually Gaussian in order to justify using a Gaussian likelihood. {{% /alert %}}</p>
 <p>Consider the model:</p>
 <p><span class="math display">\[\begin{eqnarray} { h }_{ i } &amp; \sim  &amp; Normal(\mu ,\sigma ) &amp; \text{&lt;- likelihood} \\ \mu  &amp; \sim  &amp; Normal(178,20) &amp; \text{&lt;- } \mu \text{ prior} \\ \sigma  &amp; \sim  &amp; Cauchy(0,1) &amp; \text{&lt;- } \sigma \text{ prior} \end{eqnarray}\]</span></p>
 <blockquote>
@@ -193,11 +191,11 @@ summary(m4.1, prob = 0.89)</code></pre>
 ##  
 ## Population-Level Effects: 
 ##           Estimate Est.Error l-89% CI u-89% CI Eff.Sample Rhat
-## Intercept   154.61      0.40   153.98   155.26       3454 1.00
+## Intercept   154.60      0.41   153.93   155.27       3461 1.00
 ## 
 ## Family Specific Parameters: 
 ##       Estimate Est.Error l-89% CI u-89% CI Eff.Sample Rhat
-## sigma     7.75      0.29     7.31     8.22       3170 1.00
+## sigma     7.75      0.29     7.29     8.24       3574 1.00
 ## 
 ## Samples were drawn using sampling(NUTS). For each parameter, Eff.Sample 
 ## is a crude measure of effective sample size, and Rhat is the potential 
@@ -211,9 +209,9 @@ post &lt;- posterior_samples(m4.1)
 
 # Summarise the samples
 t(apply(post[ , 1:2], 2, quantile, probs = c(.5, .055, .945)))</code></pre>
-<pre><code>##                    50%       5.5%      94.5%
-## b_Intercept 154.609590 153.979622 155.261765
-## sigma         7.736716   7.313118   8.217413</code></pre>
+<pre><code>##                  50%      5.5%      94.5%
+## b_Intercept 154.6028 153.93386 155.267376
+## sigma         7.7409   7.28751   8.235681</code></pre>
 <pre class="r"><code># Using the tidyverse for summarising
 post %&gt;%
   select(-lp__) %&gt;% 
@@ -227,13 +225,13 @@ post %&gt;%
 <pre><code>## # A tibble: 2 x 5
 ##   parameter     mean    SD `5.5_percentile` `94.5_percentile`
 ##   &lt;chr&gt;        &lt;dbl&gt; &lt;dbl&gt;            &lt;dbl&gt;             &lt;dbl&gt;
-## 1 b_Intercept 155.   0.400           154.              155.  
-## 2 sigma         7.75 0.290             7.31              8.22</code></pre>
+## 1 b_Intercept 155.   0.410           154.              155.  
+## 2 sigma         7.75 0.290             7.29              8.24</code></pre>
 <pre class="r"><code># The rethinking package has already a function to summarise the samples
 rethinking::precis(post[ , 1:2])</code></pre>
 <pre><code>##               Mean StdDev  |0.89  0.89|
-## b_Intercept 154.61   0.40 153.98 155.25
-## sigma         7.75   0.29   7.30   8.20</code></pre>
+## b_Intercept 154.60   0.41 153.97 155.30
+## sigma         7.75   0.29   7.24   8.19</code></pre>
 </div>
 </div>
 <div id="adding-a-predictor" class="section level2">
