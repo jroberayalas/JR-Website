@@ -1,0 +1,183 @@
+---
+title: Notes on Statistical Rethinking (Chapter 9 - Big Entropy and the Generalized
+  Linear Model)
+author: José Roberto Ayala Solares
+date: '2018-04-22'
+slug: notes-on-statistical-rethinking-chapter-9-big-entropy-and-the-GLM
+categories:
+  - StatisticalRethinking
+tags:
+  - bayesian
+  - notes
+summary: Notes for Chapter 9 of [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/)
+---
+
+
+
+<p>{{% alert note %}} Entropy provides one useful principle to guide choice of probability distributions: <strong>bet on the distribution with the biggest entropy</strong>. {{% /alert %}}</p>
+<blockquote>
+<p>First, the distribution with the biggest entropy is the widest and least informative distribution. Choosing the distribution with the largest entropy means spreading probability as evenly as possible, while still remaining consistent with anything we think we know about a process. In the context of choosing a prior, it means choosing the least informative distribution consistent with any partial scientific knowledge we have about a parameter. In the context of choosing a likelihood, it means selecting the distribution we’d get by counting up all the ways outcomes could arise, consistent with the constraints on the outcome variable. In both cases, the resulting distribution embodies the least information while remaining true to the information we’ve provided.</p>
+</blockquote>
+<blockquote>
+<p>Second, nature tends to produce empirical distributions that have high entropy. Back in Chapter 4, I introduced the Gaussian distribution by demonstrating how any process that repeatedly adds together fluctuations will tend towards an empirical distribution with the distinctive Gaussian shape. That shape is the one that contains no information about the underlying process except its location and variance. As a result, it has maximum entropy.</p>
+</blockquote>
+<blockquote>
+<p>Third, regardless of why it works, it tends to work. Mathematical procedures are effective even when we don’t understand them. There are no guarantees that any logic in the small world will be useful in the large world. We use logic in science because it has a strong record of effectiveness in addressing real world problems. This is the historical justification: The approach has solved difficult problems in the past. This is no guarantee that it will work on your problem. But no approach can guarantee that.</p>
+</blockquote>
+<div id="maximum-entropy" class="section level2">
+<h2>9.1. Maximum entropy</h2>
+<blockquote>
+<p>Information entropy is a measure that satisfies three criteria: (1) the measure should be continuous; (2) it should increase as the number of possible events increases; and (3) it should be additive.</p>
+</blockquote>
+<p><span class="math display">\[H(p) = -\sum _{ i=1 }^{ n }p_i\ln(p_i)\]</span></p>
+<blockquote>
+<p>The maximum entropy principle is: <em>The distribution that can happen the most ways is also the distribution with the biggest information entropy. The distribution with the biggest entropy is the most conservative distribution that obeys its constraints</em>.</p>
+</blockquote>
+<pre class="r"><code># Distribution of pebbles
+p &lt;- list()
+p$A &lt;- c(0,0,10,0,0)
+p$B &lt;- c(0,1,8,1,0)
+p$C &lt;- c(0,2,6,2,0)
+p$D &lt;- c(1,2,4,2,1)
+p$E &lt;- c(2,2,2,2,2)
+
+p_norm &lt;- lapply( p , function(q) q/sum(q))
+
+H &lt;- sapply( p_norm , function(q) -sum(ifelse(q==0,0,q*log(q))) )
+H</code></pre>
+<pre><code>##         A         B         C         D         E 
+## 0.0000000 0.6390319 0.9502705 1.4708085 1.6094379</code></pre>
+<p>{{% alert note %}} Information entropy is a way of counting how many unique arrangements correspond to a distribution. {{% /alert %}}</p>
+<blockquote>
+<p>The maximum entropy distribution, i.e. the most plausible distribution, is the distribution that can happen the greatest number of ways.</p>
+</blockquote>
+<blockquote>
+<p>Therefore Bayesian inference can be seen as producing a posterior distribution that is most similar to the prior distribution as possible, while remaining logically consistent with the stated information.</p>
+</blockquote>
+<div id="gaussian" class="section level3">
+<h3>9.1.1. Gaussian</h3>
+<blockquote>
+<p>A generalized normal distribution is defined by the probability density:</p>
+</blockquote>
+<p><span class="math display">\[\Pr\left( { y }|{ \mu ,\alpha ,\beta  } \right) =\frac { \beta  }{ 2\alpha \Gamma \left( { 1 }/{ \beta  } \right)  } { e }^{ -{ \left( \frac { \left| y-\mu  \right|  }{ \alpha  }  \right)  }^{ \beta  } }\]</span></p>
+<p>{{% alert note %}} If all we are willing to assume about a collection of measurements is that they have a finite variance, then the Gaussian distribution represents the most conservative probability distribution to assign to those measurements. {{% /alert %}}</p>
+</div>
+<div id="binomial" class="section level3">
+<h3>9.1.2. Binomial</h3>
+<pre class="r"><code># build list of the candidate distributions
+p &lt;- list()
+p[[1]] &lt;- c(1/4,1/4,1/4,1/4)
+p[[2]] &lt;- c(2/6,1/6,1/6,2/6)
+p[[3]] &lt;- c(1/6,2/6,2/6,1/6)
+p[[4]] &lt;- c(1/8,4/8,2/8,1/8)
+
+# compute expected value of each
+sapply( p , function(p) sum(p*c(0,1,1,2)) )</code></pre>
+<pre><code>## [1] 1 1 1 1</code></pre>
+<pre class="r"><code># compute entropy of each distribution
+sapply( p , function(p) -sum( p*log(p) ) )</code></pre>
+<pre><code>## [1] 1.386294 1.329661 1.329661 1.213008</code></pre>
+<pre class="r"><code>sim.p &lt;- function(G=1.4) {
+    x123 &lt;- runif(3)
+    x4 &lt;- ( (G)*sum(x123)-x123[2]-x123[3] )/(2-G)
+    z &lt;- sum( c(x123,x4) )
+    p &lt;- c( x123 , x4 )/z
+    list( H=-sum( p*log(p) ) , p=p )
+}
+
+H &lt;- replicate( 1e5 , sim.p(1.4) )
+plot(density( as.numeric(H[1,]) , adj=0.1 ), main = &quot;&quot;, xlab = &quot;Entropy&quot;)</code></pre>
+<p><img src="/post/2018-04-22-notes-on-statistical-rethinking-chapter-9-big-entropy-and-the-GLM_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+<pre class="r"><code>entropies &lt;- as.numeric(H[1,])
+distributions &lt;- H[2,]
+
+distributions[ which.max(entropies) ]</code></pre>
+<pre><code>## [[1]]
+## [1] 0.09010583 0.21017937 0.20960897 0.49010583</code></pre>
+<pre class="r"><code>max(entropies)</code></pre>
+<pre><code>## [1] 1.221728</code></pre>
+<pre class="r"><code># Theoretical maximum entropy distribution
+p &lt;- 0.7
+( A &lt;- c( (1-p)^2 , p*(1-p) , (1-p)*p , p^2 ) )</code></pre>
+<pre><code>## [1] 0.09 0.21 0.21 0.49</code></pre>
+<pre class="r"><code>-sum( A*log(A) )</code></pre>
+<pre><code>## [1] 1.221729</code></pre>
+<p>{{% alert note %}} When only two unordered outcomes are possible and the expected numbers of each type of event are assumed to be constant, then the distribution that is most consistent with these constraints is the binomial distribution. This distribution spreads probability out as evenly and conservatively as possible. Any other distribution implies hidden constraints that are unknown to us, reflecting phantom assumptions. {{% /alert %}}</p>
+<blockquote>
+<p>If only two unordered outcomes are possible and you think the process generating them is invariant in time, so that the expected value remains constant at each combination of predictor values, then the distribution that is most conservative is the binomial.</p>
+</blockquote>
+</div>
+</div>
+<div id="generalized-linear-models" class="section level2">
+<h2>9.2. Generalized linear models</h2>
+<div id="meet-the-family" class="section level3">
+<h3>9.2.1. Meet the family</h3>
+<blockquote>
+<p>The most common distributions used in statistical modeling are members of a family known as the exponential family. Every member of this family is a maximum entropy distribution, for some set of constraints.</p>
+</blockquote>
+<div class="figure">
+<img src="/img/2018-04-22-notes-on-statistical-rethinking-chapter-9-big-entropy-and-the-GLM/Exponential_Family.png" alt="Exponential Family. Image from Statistical rethinking: A Bayesian course with examples in R and Stan by Richard McElreath." />
+<p class="caption">Exponential Family. Image from <em>Statistical rethinking: A Bayesian course with examples in R and Stan</em> by Richard McElreath.</p>
+</div>
+<blockquote>
+<p>The exponential distribution (center) is constrained to be zero or positive. It is a fundamental distribution of distance and duration, kinds of measurements that represent displacement from some point of reference, either in time or space. If the probability of an event is constant in time or across space, then the distribution of events tends towards exponential. The exponential distribution has maximum entropy among all non-negative continuous distributions with the same average displacement. Its shape is described by a single parameter, the rate of events <span class="math inline">\(\lambda\)</span>, or the average displacement <span class="math inline">\(\lambda^{-1}\)</span>. This distribution is the core of survival and event history analysis.</p>
+</blockquote>
+<blockquote>
+<p>The gamma distribution (top-left) is also constrained to be zero or positive. It too is a fundamental distribution of distance and duration. But unlike the exponential distribution, the gamma distribution can have a peak above zero. If an event can only happen after two or more exponentially distributed events happen, the resulting waiting times will be gamma distributed. The gamma distribution has maximum entropy among all distributions with the same mean and same average logarithm. Its shape is described by two parameters, but there are at least three different common descriptions of these parameters, so some care is required when working with it. The gamma distribution is common in survival and event history analysis, as well as some contexts in which a continuous measurement is constrained to be positive.</p>
+</blockquote>
+<blockquote>
+<p>The Poisson distribution (bottom-left) is a count distribution like the binomial. It is actually a special case of the binomial, mathematically. If the number of trials <span class="math inline">\(n\)</span> is very large (and usually unknown) and the probability of a success <span class="math inline">\(p\)</span> is very small, then a binomial distribution converges to a Poisson distribution with an expected rate of events per unit time of <span class="math inline">\(\lambda = np\)</span>. Practically, the Poisson distribution is used for counts that never get close to any theoretical maximum. As a special case of the binomial, it has maximum entropy under exactly the same constraints. Its shape is described by a single parameter, the rate of events <span class="math inline">\(\lambda\)</span>.</p>
+</blockquote>
+</div>
+<div id="linking-linear-models-to-distributions" class="section level3">
+<h3>9.2.2. Linking linear models to distributions</h3>
+<blockquote>
+<p>A link function is required to prevent mathematical accidents like negative distances or probability masses that exceed 1. A link function’s job is to map the linear space of a model like <span class="math inline">\(\alpha + \beta x_i\)</span> onto the non-linear space of a parameter like <span class="math inline">\(\theta\)</span>.</p>
+</blockquote>
+<div id="logit-link" class="section level4">
+<h4>Logit link</h4>
+<blockquote>
+<p>The logit link maps a parameter that is defined as a probability mass, and therefore constrained to lie between zero and one, onto a linear model that can take on any real value. This link is extremely common when working with binomial GLMs.</p>
+</blockquote>
+<p><span class="math display">\[\begin{eqnarray} { y }_{ i } &amp; \sim  &amp; \text{ Binomial }(n, { p  }_{ i } ) \\ \text{ logit } \left( { p }_{ i } \right) &amp; = &amp; \alpha +{ \beta  }{ x }_{ i }  \end{eqnarray}\]</span></p>
+<p>where</p>
+<p><span class="math display">\[\text{ logit } \left( { p }_{ i } \right) = \log \frac { { p }_{ i } }{ 1-{ p }_{ i } }\]</span></p>
+<blockquote>
+<p>The “odds” of an event are just the probability it happens divided by the probability it does not happen.</p>
+</blockquote>
+<blockquote>
+<p>Interpretation of parameter estimates changes, because no longer does a unit change in a predictor variable produce a constant change in the mean of the outcome variable.</p>
+</blockquote>
+<blockquote>
+<p>In GLM, every predictor essentially interacts with itself, because the impact of a change in a predictor depends upon the value of the predictor before the change. More generally, every predictor variable effectively interacts with every other predictor variable, whether you explicitly model them as interactions or not. This fact makes the visualization of counter-factual predictions even more important for understanding what the model is telling you.</p>
+</blockquote>
+</div>
+<div id="log-link" class="section level4">
+<h4>Log link</h4>
+<blockquote>
+<p>The log link maps a parameter that is defined over only positive real values onto a linear model.</p>
+</blockquote>
+<p><span class="math display">\[\begin{eqnarray} { y }_{ i } &amp; \sim  &amp; \text{ Normal }(\mu, { \sigma  }_{ i } ) \\ \log \left( { \sigma }_{ i } \right) &amp; = &amp; \alpha +{ \beta  }{ x }_{ i }  \end{eqnarray}\]</span></p>
+<p><span class="math display">\[\sigma_i = \exp \left( \alpha +{ \beta  }{ x }_{ i } \right)\]</span></p>
+<p>{{% alert warning %}} While using a log link does solve the problem of constraining the parameter to be positive, it may also create a problem when the model is asked to predict well outside the range of data used to fit it. {{% /alert %}}</p>
+<blockquote>
+<p>In <strong>sensitivity analysis</strong>, many justifiable analyses are tried, and all of them are described.</p>
+</blockquote>
+</div>
+</div>
+<div id="absolute-and-relative-differences" class="section level3">
+<h3>9.2.3. Absolute and relative differences</h3>
+<blockquote>
+<p>There is an important practical consequence of the way that a link function compresses and expands different portions of the linear model’s range: Parameter estimates do not by themselves tell you the importance of a predictor on the outcome. The reason is that each parameter represents a relative difference on the scale of the linear model, ignoring other parameters, while we are really interested in absolute differences in outcomes that must incorporate all parameters.</p>
+</blockquote>
+</div>
+<div id="glms-and-information-criteria" class="section level3">
+<h3>9.2.4. GLMs and information criteria</h3>
+<p>{{% alert warning %}} Only compare models that all use the same type of likelihood. Of course it is possible to compare models that use different likelihoods, just not with information criteria. {{% /alert %}}</p>
+</div>
+</div>
+<div id="references" class="section level2">
+<h2>References</h2>
+<p>McElreath, R. (2016). <em>Statistical rethinking: A Bayesian course with examples in R and Stan.</em> Chapman &amp; Hall/CRC Press.</p>
+<p>Kurz, A. S. (2018, March 9). <em>brms, ggplot2 and tidyverse code, by chapter</em>. Retrieved from <a href="https://goo.gl/JbvNTj" class="uri">https://goo.gl/JbvNTj</a></p>
+</div>
