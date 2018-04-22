@@ -19,7 +19,15 @@ summary: Notes for Chapter 8 of [Statistical Rethinking](http://xcelab.net/rm/st
 <div id="good-king-markov-and-his-island-kingdom" class="section level2">
 <h2>8.1. Good King Markov and His island kingdom</h2>
 <blockquote>
-<p>The Metropolis algorithm: 1. Wherever the King is, each week he decides between staying put for another week or moving to one of the two adjacent islands. To decide his next move, he flips a coin. 2. If the coin turns up heads, the King considers moving to the adjacent island clockwise around the archipelago. If the coin turns up tails, he considers instead moving counterclockwise. Call the island the coin nominates the proposal island. 3. Now, to see whether or not he moves to the proposal island, King Markov counts out a number of seashells equal to the relative population size of the proposal island. So for example, if the proposal island is number 9, then he counts out 9 seashells. Then he also counts out a number of stones equal to the relative population of the current island. So for example, if the current island is number 10, then King Markov ends up holding 10 stones, in addition to the 9 seashells. 4. When there are more seashells than stones, King Markov always moves to the proposal island. But if there are fewer shells than stones, he discards a number of stones equal to the number of shells. So for example, if there are 4 shells and 6 stones, he ends up with 4 shells and 6 - 4 = 2 stones. Then he places the shells and the remaining stones in a bag. He reaches in and randomly pulls out one object. If it is a shell, he moves to the proposal island. Otherwise, he stays put another week. As a result, the probability that he moves is equal to the number of shells divided by the original number of stones.</p>
+<p>The Metropolis algorithm:</p>
+</blockquote>
+<blockquote>
+<ol style="list-style-type: decimal">
+<li>Wherever the King is, each week he decides between staying put for another week or moving to one of the two adjacent islands. To decide his next move, he flips a coin.</li>
+<li>If the coin turns up heads, the King considers moving to the adjacent island clockwise around the archipelago. If the coin turns up tails, he considers instead moving counterclockwise. Call the island the coin nominates the proposal island.</li>
+<li>Now, to see whether or not he moves to the proposal island, King Markov counts out a number of seashells equal to the relative population size of the proposal island. So for example, if the proposal island is number 9, then he counts out 9 seashells. Then he also counts out a number of stones equal to the relative population of the current island. So for example, if the current island is number 10, then King Markov ends up holding 10 stones, in addition to the 9 seashells.</li>
+<li>When there are more seashells than stones, King Markov always moves to the proposal island. But if there are fewer shells than stones, he discards a number of stones equal to the number of shells. So for example, if there are 4 shells and 6 stones, he ends up with 4 shells and 6 - 4 = 2 stones. Then he places the shells and the remaining stones in a bag. He reaches in and randomly pulls out one object. If it is a shell, he moves to the proposal island. Otherwise, he stays put another week. As a result, the probability that he moves is equal to the number of shells divided by the original number of stones.</li>
+</ol>
 </blockquote>
 <pre class="r"><code>set.seed(103)
 
@@ -80,7 +88,7 @@ tibble(week = 1:1e5,
 </ul>
 </blockquote>
 <blockquote>
-<p>Provided the way we choose our proposed parameter values at each step is symmetric, so that there is an equal chance of proposing from A to B and from B to A, then the Metropolis algorithm will eventually give us a collection of samples from the joint posterior. We can then use these samples just like all the samples you’ve already used in this book.</p>
+<p>Provided the way we choose our proposed parameter values at each step is symmetric, so that there is an equal chance of proposing from A to B and from B to A, then the Metropolis algorithm will eventually give us a collection of samples from the joint posterior.</p>
 </blockquote>
 <div id="gibbs-sampling" class="section level3">
 <h3>8.2.1. Gibbs sampling</h3>
@@ -357,7 +365,7 @@ post %&gt;%
 <blockquote>
 <p>The most broadly useful tool for diagnosing malfunction is a trace plot. A trace plot merely plots the samples in sequential order, joined by a line.</p>
 </blockquote>
-<p>{{% alert note %}} We look for two things in trace plots: stationarity and good mixing. {{% /alert %}}</p>
+<p>{{% alert note %}} We look for two things in trace plots: <strong>stationarity</strong> and <strong>good mixing</strong>. {{% /alert %}}</p>
 <blockquote>
 <p>Stationarity refers to the path staying within the posterior distribution. Notice that these traces, for example, all stick around a very stable central tendency, the center of gravity of each dimension of the posterior. Another way to think of this is that the mean value of the chain is quite stable from beginning to end.</p>
 </blockquote>

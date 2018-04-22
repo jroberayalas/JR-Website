@@ -15,7 +15,8 @@ summary: Notes for Chapter 8 of [Statistical Rethinking](http://xcelab.net/rm/st
 
 ## 8.1. Good King Markov and His island kingdom
 > The Metropolis algorithm:
-1. Wherever the King is, each week he decides between staying put for another week or moving to one of the two adjacent islands. To decide his next move, he flips a coin.
+
+> 1. Wherever the King is, each week he decides between staying put for another week or moving to one of the two adjacent islands. To decide his next move, he flips a coin.
 2. If the coin turns up heads, the King considers moving to the adjacent island clockwise around the archipelago. If the coin turns up tails, he considers instead moving counterclockwise. Call the island the coin nominates the proposal island.
 3. Now, to see whether or not he moves to the proposal island, King Markov counts out a number of seashells equal to the relative population size of the proposal island. So for example, if the proposal island is number 9, then he counts out 9 seashells. Then he also counts out a number of stones equal to the relative population of the current island. So for example, if the current island is number 10, then King Markov ends up holding 10 stones, in addition to the 9 seashells.
 4. When there are more seashells than stones, King Markov always moves to the proposal island. But if there are fewer shells than stones, he discards a number of stones equal to the number of shells. So for example, if there are 4 shells and 6 stones, he ends up with 4 shells and 6 - 4 = 2 stones. Then he places the shells and the remaining stones in a bag. He reaches in and randomly pulls out one object. If it is a shell, he moves to the proposal island. Otherwise, he stays put another week. As a result, the probability that he moves is equal to the number of shells divided by the original number of stones.
@@ -76,7 +77,7 @@ tibble(week = 1:1e5,
 + The “population sizes” in our objective are the posterior probabilities at each parameter value.
 + The “weeks” in our objective are samples taken from the joint posterior of the parameters in the model.
 
-> Provided the way we choose our proposed parameter values at each step is symmetric, so that there is an equal chance of proposing from A to B and from B to A, then the Metropolis algorithm will eventually give us a collection of samples from the joint posterior. We can then use these samples just like all the samples you’ve already used in this book.
+> Provided the way we choose our proposed parameter values at each step is symmetric, so that there is an equal chance of proposing from A to B and from B to A, then the Metropolis algorithm will eventually give us a collection of samples from the joint posterior.
 
 ### 8.2.1. Gibbs sampling
 > The Metropolis algorithm works whenever the probability of proposing a jump to B from A is equal to the probability of proposing A from B, when the proposal distribution is symmetric. There is a more general method, known as Metropolis-Hastings, that allows asymmetric proposals. This would mean, in the context of King Markov’s fable, that the King’s coin were biased to lead him clockwise on average. One reason such a choice is that it makes it easier to handle parameters, like standard deviations, that have boundaries at zero. A better reason, however, is that it allows us to generate savvy proposals that explore the posterior distribution more efficiently. By “more efficiently,” I mean that we can acquire an equally good image of the posterior distribution in fewer steps.
@@ -101,6 +102,7 @@ HMC requires continuous parameters. It can’t glide through a discrete paramete
 > A big limitation of HMC is that it needs to be tuned to a particular model and its data. The frictionless particle does need mass, so it can acquire momentum, and the choice of mass can have big effects on efficiency. There are also a number of other parameters that define the HMC algorithm, but no the statistical model, that can change how efficiently the Markov chain samples. Tuning all of those parameters by hand is a pain. That’s where an engine like Stan (mc-stan.org) comes in.
 
 ## 8.3. Easy HMC: `brm()`
+
 ```{r message=FALSE}
 library(rethinking)
 data(rugged)
@@ -210,7 +212,7 @@ Visual MCMC diagnostics using the bayesplot package [`bayesplot`](https://cran.r
 > The most broadly useful tool for diagnosing malfunction is a trace plot. A trace plot merely plots the samples in sequential order, joined by a line.
 
 {{% alert note %}}
-We look for two things in trace plots: stationarity and good mixing.
+We look for two things in trace plots: **stationarity** and **good mixing**.
 {{% /alert %}}
 
 > Stationarity refers to the path staying within the posterior distribution. Notice that these traces, for example, all stick around a very stable central tendency, the center of gravity of each dimension of the posterior. Another way to think of this is that the mean value of the chain is quite stable from beginning to end.
