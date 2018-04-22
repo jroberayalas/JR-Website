@@ -50,7 +50,7 @@ samples &lt;- sample(p_grid, prob = posterior, size = 1e4, replace=TRUE)
 
 # ask a question
 sum(samples &gt; 0.5 &amp; samples &lt; 0.75) / 1e4</code></pre>
-<pre><code>## [1] 0.6028</code></pre>
+<pre><code>## [1] 0.6019</code></pre>
 </div>
 <div id="intervals-of-defined-mass" class="section level3">
 <h3>3.2.2. Intervals of defined mass</h3>
@@ -60,7 +60,7 @@ sum(samples &gt; 0.5 &amp; samples &lt; 0.75) / 1e4</code></pre>
 <p>When intervals assign equal probability mass to each tail, they are known as <strong>percentile intervals</strong> (PI). For example, where are the boundaries of the 80% percentile confidence interval?</p>
 <pre class="r"><code>quantile(samples, c(0.1, 0.9))</code></pre>
 <pre><code>##       10%       90% 
-## 0.4503504 0.8158158</code></pre>
+## 0.4464464 0.8108108</code></pre>
 <blockquote>
 <p>These intervals do a good job of communicating the shape of a distribution, as long as the distribution isn’t too asymmetrical. But in terms of supporting inferences about which parameters are consistent with the data, they are not perfect.</p>
 </blockquote>
@@ -70,7 +70,7 @@ sum(samples &gt; 0.5 &amp; samples &lt; 0.75) / 1e4</code></pre>
 </blockquote>
 <pre class="r"><code>rethinking::HPDI(samples, prob = 0.8)</code></pre>
 <pre><code>##      |0.8      0.8| 
-## 0.4744745 0.8348348</code></pre>
+## 0.4694695 0.8288288</code></pre>
 <blockquote>
 <p>The HPDI also has some disadvantages. HPDI is more computationally intensive than PI and suffers from greater <em>simulation variance</em>, which is a fancy way of saying that it is sensitive to how many samples you draw from the posterior. It is also harder to understand and many scientific audiences will not appreciate its features, while they will immediately understand a percentile interval, as ordinary non-Bayesian intervals are nearly always percentile intervals (although of sampling distributions, not posterior distributions).</p>
 </blockquote>
@@ -121,6 +121,11 @@ sum(samples &gt; 0.5 &amp; samples &lt; 0.75) / 1e4</code></pre>
 <pre class="r"><code>w &lt;- rbinom(1e4, size=9, prob=samples)
 rethinking::dens(w, adj=2.5)</code></pre>
 <p><img src="/post/2018-03-23-notes-on-statistical-rethinking-chapter-3-sampling-the-imaginary_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<div class="figure">
+<img src="/img/2018-03-23-notes-on-statistical-rethinking-chapter-3-sampling-the-imaginary/PPD.png" alt="Posterior Predictive Distribution" />
+<p class="caption">Posterior Predictive Distribution</p>
+</div>
+<p>{{&lt; figure src=“/img/2018-03-23-notes-on-statistical-rethinking-chapter-3-sampling-the-imaginary/PPD.png” title=“Posterior Predictive Distribution” &gt;}}</p>
 <blockquote>
 <p>Model fitting remains an objective procedure—everyone and every golem conducts Bayesian updating in a way that doesn’t depend upon personal preferences. But model checking is inherently subjective, and this actually allows it to be quite powerful, since subjective knowledge of an empirical domain provides expertise. Expertise in turn allows for imaginative checks of model performance. Since golems have terrible imaginations, we need the freedom to engage our own imaginations. In this way, the objective and subjective work together.</p>
 </blockquote>

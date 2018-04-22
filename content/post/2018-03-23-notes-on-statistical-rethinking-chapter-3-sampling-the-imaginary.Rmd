@@ -102,6 +102,10 @@ w <- rbinom(1e4, size=9, prob=samples)
 rethinking::dens(w, adj=2.5)
 ```
 
+![Posterior Predictive Distribution](/img/2018-03-23-notes-on-statistical-rethinking-chapter-3-sampling-the-imaginary/PPD.png)
+
+{{< figure src="/img/2018-03-23-notes-on-statistical-rethinking-chapter-3-sampling-the-imaginary/PPD.png" title="Posterior Predictive Distribution" >}}
+
 > Model fitting remains an objective procedure—everyone and every golem conducts Bayesian updating in a way that doesn’t depend upon personal preferences. But model checking is inherently subjective, and this actually allows it to be quite powerful, since subjective knowledge of an empirical domain provides expertise. Expertise in turn allows for imaginative checks of model performance. Since golems have terrible imaginations, we need the freedom to engage our own imaginations. In this way, the objective and subjective work together.
 
 ## References
