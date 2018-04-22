@@ -97,14 +97,12 @@ overconfidence. The 95% is a *small world* number, only true in the model’s lo
 
 > We’d like to propagate the parameter uncertainty—carry it forward—as we evaluate the implied predictions. All that is required is averaging over the posterior density for p, while computing the predictions. For each possible value of the parameter p, there is an implied distribution of outcomes. So if you were to compute the sampling distribution of outcomes at each value of p, then you could average all of these prediction distributions together, using the posterior probabilities of each value of p, to get a **posterior predictive distribution**.
 
+![Posterior Predictive Distribution, Image from *Statistical rethinking: A Bayesian course with examples in R and Stan* by Richard McElreath. ](/img/2018-03-23-notes-on-statistical-rethinking-chapter-3-sampling-the-imaginary/PPD.png)
+
 ```{r}
 w <- rbinom(1e4, size=9, prob=samples)
 rethinking::dens(w, adj=2.5)
 ```
-
-![Posterior Predictive Distribution](/img/2018-03-23-notes-on-statistical-rethinking-chapter-3-sampling-the-imaginary/PPD.png)
-
-{{< figure src="/img/2018-03-23-notes-on-statistical-rethinking-chapter-3-sampling-the-imaginary/PPD.png" title="Posterior Predictive Distribution" >}}
 
 > Model fitting remains an objective procedure—everyone and every golem conducts Bayesian updating in a way that doesn’t depend upon personal preferences. But model checking is inherently subjective, and this actually allows it to be quite powerful, since subjective knowledge of an empirical domain provides expertise. Expertise in turn allows for imaginative checks of model performance. Since golems have terrible imaginations, we need the freedom to engage our own imaginations. In this way, the objective and subjective work together.
 
