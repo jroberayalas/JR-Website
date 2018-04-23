@@ -13,6 +13,10 @@ summary: Notes for Chapter 8 of [Statistical Rethinking](http://xcelab.net/rm/st
 
 > The Stan programming language is not an abbreviation or acronym. Rather, it is named after Stanislaw Ulam (1909–1984). Ulam is credited as one of the inventors of Markov chain Monte Carlo. Together with Ed Teller, Ulam applied it to designing fusion bombs. But he and others soon applied the general Monte Carlo method to diverse problems of less monstrous nature. Ulam made important contributions in pure mathematics, chaos theory, and molecular and theoretical biology, as well.
 
+{{% alert note %}}
+The Markov-chain Monte Carlo Interactive [Gallery](https://chi-feng.github.io/mcmc-demo/).
+{{% /alert %}}
+
 ## 8.1. Good King Markov and His island kingdom
 > The Metropolis algorithm:
 
@@ -87,6 +91,11 @@ tibble(week = 1:1e5,
 > But there are some severe limitations to Gibbs sampling. First, maybe you don’t want to use conjugate priors. Some conjugate priors seem silly, and choosing a prior so that the model fits efficiently isn’t really a strong argument from a scientific perspective. Second, as models become more complex and contain hundreds or thousands or tens of thousands of parameters, Gibbs sampling becomes shockingly inefficient.
 
 ### 8.2.2. Hamiltonian Monte Carlo
+
+{{% alert note %}}
+Check this [blog post](http://elevanth.org/blog/2017/11/28/build-a-better-markov-chain/) by R. McElreath.
+{{% /alert %}}
+
 > Hamiltonian Monte Carlo (or Hybrid Monte Carlo, HMC) is much more computationally costly than are Metropolis or Gibbs sampling. But its proposals are typically much more efficient. As a result, it doesn’t need as many samples to describe the posterior distribution.
 
 > Consider a different fable. Suppose King Markov’s cousin Monty is King on the mainland. Monty’s kingdom is not a discrete set of islands. Instead, it is a continuous territory stretched out along a narrow valley. But the King has a similar obligation: to visit his citizens in proportion to their local density. 
@@ -97,6 +106,10 @@ tibble(week = 1:1e5,
 
 {{% alert warning %}}
 HMC requires continuous parameters. It can’t glide through a discrete parameter. In practice, this means that certain advanced techniques, like the imputation of discrete missing data, are not possible with HMC alone. And there are types of models that remain difficult for any MCMC strategy.
+{{% /alert %}}
+
+{{% alert note %}}
+Check this [blog post](http://elevanth.org/blog/2018/01/29/algebra-and-missingness/) about how to sample discrete parameters with Hamiltonian Monte Carlo.
 {{% /alert %}}
 
 > A big limitation of HMC is that it needs to be tuned to a particular model and its data. The frictionless particle does need mass, so it can acquire momentum, and the choice of mass can have big effects on efficiency. There are also a number of other parameters that define the HMC algorithm, but no the statistical model, that can change how efficiently the Markov chain samples. Tuning all of those parameters by hand is a pain. That’s where an engine like Stan (mc-stan.org) comes in.
