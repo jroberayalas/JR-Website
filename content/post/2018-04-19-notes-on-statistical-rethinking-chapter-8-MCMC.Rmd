@@ -175,7 +175,7 @@ From the results above `n_eff` is a crude estimate of the number of independent 
 > When `n_eff` is much lower than the actual number of iterations (minus warmup) of your chains, it means the chains are inefficient, but possibly still okay. $\hat { R }$ is the Gelman-Rubin convergence diagnostic. When `Rhat` is above 1.00, it usually indicates that the chain has not yet converged, and probably you shouldn’t trust the samples. If you draw more iterations, it could be fine, or it could never converge.
 
 {{% alert warning %}}
-It’s important however not to rely too much on these diagnostics. Like all heuristics, there are cases in which they provide poor advice. For example, `Rhat can reach 1.00 even for an invalid chain. So view it perhaps as a signal of danger, but never of safety.
+It’s important however not to rely too much on these diagnostics. Like all heuristics, there are cases in which they provide poor advice. For example, `Rhat` can reach 1.00 even for an invalid chain. So view it perhaps as a signal of danger, but never of safety.
 {{% /alert %}}
 
 ### 8.3.3. Sampling again, in parallel
@@ -219,7 +219,7 @@ The information criteria haven’t taken long to estimate in the models discusse
 
 ### 8.3.6. Checking the chain
 {{% alert note %}}
-Visual MCMC diagnostics using the bayesplot package [`bayesplot`](https://cran.r-project.org/web/packages/bayesplot/vignettes/visual-mcmc-diagnostics.html) package.
+Visual MCMC diagnostics using the [`bayesplot`](https://cran.r-project.org/web/packages/bayesplot/vignettes/visual-mcmc-diagnostics.html) package.
 {{% /alert %}}
 
 > The most broadly useful tool for diagnosing malfunction is a trace plot. A trace plot merely plots the samples in sequential order, joined by a line.
@@ -304,7 +304,7 @@ print(m8.2)
 ```
 
 {{% alert note %}}
-An `Rhat` value of 1.01 is suspicious. An `Rhat of 1.10 indicates a catastrophe.
+An `Rhat` value of 1.01 is suspicious. An `Rhat` of 1.10 indicates a catastrophe.
 {{% /alert %}}
 
 ```{r}
@@ -357,7 +357,7 @@ intercept <- post %>%
     geom_line(data = data.frame(x = seq(from = min(post$b_Intercept),
                                         to = max(post$b_Intercept),
                                         length.out = 50)),
-              aes(x = x, y = dnorm(x = x, mean = 0, sd = 10)),
+              aes(x = x, y = dnorm(x = x, mean = 1, sd = 10)),
               color = ipsum_pal()(1), linetype = 2) +
     theme_ipsum()
 

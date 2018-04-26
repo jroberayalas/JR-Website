@@ -16,6 +16,7 @@ summary: Notes for Chapter 8 of [Statistical Rethinking](http://xcelab.net/rm/st
 <blockquote>
 <p>The Stan programming language is not an abbreviation or acronym. Rather, it is named after Stanislaw Ulam (1909–1984). Ulam is credited as one of the inventors of Markov chain Monte Carlo. Together with Ed Teller, Ulam applied it to designing fusion bombs. But he and others soon applied the general Monte Carlo method to diverse problems of less monstrous nature. Ulam made important contributions in pure mathematics, chaos theory, and molecular and theoretical biology, as well.</p>
 </blockquote>
+<p>{{% alert note %}} The Markov-chain Monte Carlo Interactive <a href="https://chi-feng.github.io/mcmc-demo/">Gallery</a>. {{% /alert %}}</p>
 <div id="good-king-markov-and-his-island-kingdom" class="section level2">
 <h2>8.1. Good King Markov and His island kingdom</h2>
 <blockquote>
@@ -104,6 +105,7 @@ tibble(week = 1:1e5,
 </div>
 <div id="hamiltonian-monte-carlo" class="section level3">
 <h3>8.2.2. Hamiltonian Monte Carlo</h3>
+<p>{{% alert note %}} Check this <a href="http://elevanth.org/blog/2017/11/28/build-a-better-markov-chain/">blog post</a> by R. McElreath. {{% /alert %}}</p>
 <blockquote>
 <p>Hamiltonian Monte Carlo (or Hybrid Monte Carlo, HMC) is much more computationally costly than are Metropolis or Gibbs sampling. But its proposals are typically much more efficient. As a result, it doesn’t need as many samples to describe the posterior distribution.</p>
 </blockquote>
@@ -117,6 +119,7 @@ tibble(week = 1:1e5,
 <p>In statistical applications, the royal vehicle is the current vector of parameter values. In the single parameter case, the log-posterior is like a bowl, with the MAP at its nadir (lowest point). Then the job is to sweep across the surface of the bowl, adjusting speed in proportion to how high up we are. HMC really does run a physics simulation, pretending the vector of parameters gives the position of a little frictionless particle. The log-posterior provides a surface for this particle to glide across. When the log-posterior is very flat, because there isn’t much information in the likelihood and the priors are rather flat, then the particle can glide for a long time before the slope (gradient) makes it turn around. When instead the log-posterior is very steep, because either the likelihood or the priors are very concentrated, then the particle doesn’t get far before turning around.</p>
 </blockquote>
 <p>{{% alert warning %}} HMC requires continuous parameters. It can’t glide through a discrete parameter. In practice, this means that certain advanced techniques, like the imputation of discrete missing data, are not possible with HMC alone. And there are types of models that remain difficult for any MCMC strategy. {{% /alert %}}</p>
+<p>{{% alert note %}} Check this <a href="http://elevanth.org/blog/2018/01/29/algebra-and-missingness/">blog post</a> about how to sample discrete parameters with Hamiltonian Monte Carlo. {{% /alert %}}</p>
 <blockquote>
 <p>A big limitation of HMC is that it needs to be tuned to a particular model and its data. The frictionless particle does need mass, so it can acquire momentum, and the choice of mass can have big effects on efficiency. There are also a number of other parameters that define the HMC algorithm, but no the statistical model, that can change how efficiently the Markov chain samples. Tuning all of those parameters by hand is a pain. That’s where an engine like Stan (mc-stan.org) comes in.</p>
 </blockquote>
@@ -298,7 +301,7 @@ glimpse(dd.trim)</code></pre>
 <blockquote>
 <p>When <code>n_eff</code> is much lower than the actual number of iterations (minus warmup) of your chains, it means the chains are inefficient, but possibly still okay. <span class="math inline">\(\hat { R }\)</span> is the Gelman-Rubin convergence diagnostic. When <code>Rhat</code> is above 1.00, it usually indicates that the chain has not yet converged, and probably you shouldn’t trust the samples. If you draw more iterations, it could be fine, or it could never converge.</p>
 </blockquote>
-<p>{{% alert warning %}} It’s important however not to rely too much on these diagnostics. Like all heuristics, there are cases in which they provide poor advice. For example, `Rhat can reach 1.00 even for an invalid chain. So view it perhaps as a signal of danger, but never of safety. {{% /alert %}}</p>
+<p>{{% alert warning %}} It’s important however not to rely too much on these diagnostics. Like all heuristics, there are cases in which they provide poor advice. For example, <code>Rhat</code> can reach 1.00 even for an invalid chain. So view it perhaps as a signal of danger, but never of safety. {{% /alert %}}</p>
 </div>
 <div id="sampling-again-in-parallel" class="section level3">
 <h3>8.3.3. Sampling again, in parallel</h3>
@@ -361,7 +364,7 @@ post %&gt;%
 </div>
 <div id="checking-the-chain" class="section level3">
 <h3>8.3.6. Checking the chain</h3>
-<p>{{% alert note %}} Visual MCMC diagnostics using the bayesplot package <a href="https://cran.r-project.org/web/packages/bayesplot/vignettes/visual-mcmc-diagnostics.html"><code>bayesplot</code></a> package. {{% /alert %}}</p>
+<p>{{% alert note %}} Visual MCMC diagnostics using the <a href="https://cran.r-project.org/web/packages/bayesplot/vignettes/visual-mcmc-diagnostics.html"><code>bayesplot</code></a> package. {{% /alert %}}</p>
 <blockquote>
 <p>The most broadly useful tool for diagnosing malfunction is a trace plot. A trace plot merely plots the samples in sequential order, joined by a line.</p>
 </blockquote>
@@ -561,7 +564,7 @@ mcmc_trace(post[, c(1:5, 7)], # We need to include column 7 because that contain
 ## Samples were drawn using sampling(NUTS). For each parameter, Eff.Sample 
 ## is a crude measure of effective sample size, and Rhat is the potential 
 ## scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
-<p>{{% alert note %}} An <code>Rhat</code> value of 1.01 is suspicious. An `Rhat of 1.10 indicates a catastrophe. {{% /alert %}}</p>
+<p>{{% alert note %}} An <code>Rhat</code> value of 1.01 is suspicious. An <code>Rhat</code> of 1.10 indicates a catastrophe. {{% /alert %}}</p>
 <pre class="r"><code>post &lt;- posterior_samples(m8.2, add_chain = T)
 
 mcmc_trace(post[, c(1:2, 4)],
@@ -680,7 +683,7 @@ mcmc_trace(post[, c(1:2, 4)],
     geom_line(data = data.frame(x = seq(from = min(post$b_Intercept),
                                         to = max(post$b_Intercept),
                                         length.out = 50)),
-              aes(x = x, y = dnorm(x = x, mean = 0, sd = 10)),
+              aes(x = x, y = dnorm(x = x, mean = 1, sd = 10)),
               color = ipsum_pal()(1), linetype = 2) +
     theme_ipsum()
 
