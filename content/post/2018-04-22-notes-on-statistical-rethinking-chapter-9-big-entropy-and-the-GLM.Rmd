@@ -128,11 +128,11 @@ When only two unordered outcomes are possible and the expected numbers of each t
 #### Logit link
 > The logit link maps a parameter that is defined as a probability mass, and therefore constrained to lie between zero and one, onto a linear model that can take on any real value. This link is extremely common when working with binomial GLMs.
 
-$$\begin{eqnarray} { y }_{ i } & \sim  & \text{ Binomial }(n, { p  }_{ i } ) \\ \text{ logit } \left( { p }_{ i } \right) & = & \alpha +{ \beta  }{ x }_{ i }  \end{eqnarray}$$
+$$\begin{eqnarray} { y }_{ i } & \sim  & \text{ Binomial }(n, { p  }_{ i } ) \\ \text{ logit} \left( { p }_{ i } \right) & = & \alpha +{ \beta  }{ x }_{ i }  \end{eqnarray}$$
 
 where
 
-$$\text{ logit } \left( { p }_{ i } \right) = \log \frac { { p }_{ i } }{ 1-{ p }_{ i } }$$
+$$\text{ logit} \left( { p }_{ i } \right) = \log \frac { { p }_{ i } }{ 1-{ p }_{ i } }$$
 
 > The “odds” of an event are just the probability it happens divided by the probability it does not happen.
 

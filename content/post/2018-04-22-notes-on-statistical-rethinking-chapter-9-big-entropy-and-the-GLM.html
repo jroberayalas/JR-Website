@@ -93,9 +93,9 @@ distributions &lt;- H[2,]
 
 distributions[ which.max(entropies) ]</code></pre>
 <pre><code>## [[1]]
-## [1] 0.08987004 0.21026542 0.20999450 0.48987004</code></pre>
+## [1] 0.09030377 0.20932852 0.21006394 0.49030377</code></pre>
 <pre class="r"><code>max(entropies)</code></pre>
-<pre><code>## [1] 1.221728</code></pre>
+<pre><code>## [1] 1.221727</code></pre>
 <pre class="r"><code># Theoretical maximum entropy distribution
 p &lt;- 0.7
 ( A &lt;- c( (1-p)^2 , p*(1-p) , (1-p)*p , p^2 ) )</code></pre>
@@ -139,9 +139,9 @@ p &lt;- 0.7
 <blockquote>
 <p>The logit link maps a parameter that is defined as a probability mass, and therefore constrained to lie between zero and one, onto a linear model that can take on any real value. This link is extremely common when working with binomial GLMs.</p>
 </blockquote>
-<p><span class="math display">\[\begin{eqnarray} { y }_{ i } &amp; \sim  &amp; \text{ Binomial }(n, { p  }_{ i } ) \\ \text{ logit } \left( { p }_{ i } \right) &amp; = &amp; \alpha +{ \beta  }{ x }_{ i }  \end{eqnarray}\]</span></p>
+<p><span class="math display">\[\begin{eqnarray} { y }_{ i } &amp; \sim  &amp; \text{ Binomial }(n, { p  }_{ i } ) \\ \text{ logit} \left( { p }_{ i } \right) &amp; = &amp; \alpha +{ \beta  }{ x }_{ i }  \end{eqnarray}\]</span></p>
 <p>where</p>
-<p><span class="math display">\[\text{ logit } \left( { p }_{ i } \right) = \log \frac { { p }_{ i } }{ 1-{ p }_{ i } }\]</span></p>
+<p><span class="math display">\[\text{ logit} \left( { p }_{ i } \right) = \log \frac { { p }_{ i } }{ 1-{ p }_{ i } }\]</span></p>
 <blockquote>
 <p>The “odds” of an event are just the probability it happens divided by the probability it does not happen.</p>
 </blockquote>
