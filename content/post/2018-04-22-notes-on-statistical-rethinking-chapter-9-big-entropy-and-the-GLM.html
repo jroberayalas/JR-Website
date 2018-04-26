@@ -93,7 +93,7 @@ distributions &lt;- H[2,]
 
 distributions[ which.max(entropies) ]</code></pre>
 <pre><code>## [[1]]
-## [1] 0.09010583 0.21017937 0.20960897 0.49010583</code></pre>
+## [1] 0.08987004 0.21026542 0.20999450 0.48987004</code></pre>
 <pre class="r"><code>max(entropies)</code></pre>
 <pre><code>## [1] 1.221728</code></pre>
 <pre class="r"><code># Theoretical maximum entropy distribution
@@ -158,6 +158,7 @@ p &lt;- 0.7
 <p>The log link maps a parameter that is defined over only positive real values onto a linear model.</p>
 </blockquote>
 <p><span class="math display">\[\begin{eqnarray} { y }_{ i } &amp; \sim  &amp; \text{ Normal }(\mu, { \sigma  }_{ i } ) \\ \log \left( { \sigma }_{ i } \right) &amp; = &amp; \alpha +{ \beta  }{ x }_{ i }  \end{eqnarray}\]</span></p>
+<p>which implies</p>
 <p><span class="math display">\[\sigma_i = \exp \left( \alpha +{ \beta  }{ x }_{ i } \right)\]</span></p>
 <p>{{% alert warning %}} While using a log link does solve the problem of constraining the parameter to be positive, it may also create a problem when the model is asked to predict well outside the range of data used to fit it. {{% /alert %}}</p>
 <blockquote>

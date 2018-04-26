@@ -145,6 +145,8 @@ $$\text{ logit } \left( { p }_{ i } \right) = \log \frac { { p }_{ i } }{ 1-{ p 
 
 $$\begin{eqnarray} { y }_{ i } & \sim  & \text{ Normal }(\mu, { \sigma  }_{ i } ) \\ \log \left( { \sigma }_{ i } \right) & = & \alpha +{ \beta  }{ x }_{ i }  \end{eqnarray}$$
 
+which implies
+
 $$\sigma_i = \exp \left( \alpha +{ \beta  }{ x }_{ i } \right)$$
 
 {{% alert warning %}}
