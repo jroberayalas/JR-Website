@@ -36,7 +36,7 @@ Multivariate models ask the following question: **What is the predictive value o
 ### 5.1.1. Multivariate notation
 Consider the following multivariate model where $R_i$ is marriage rate (`Marriage.s`), $A_i$ is median age at marriage (`MedianAgeMarriage.s) and $D_i$ is divorce rate:
 
-$$\begin{eqnarray} { D }_{ i } & \sim  & Normal({ \mu  }_{ i },\sigma ) & \text{<- likelihood } \\ { \mu  }_{ i } & = & \alpha +{ \beta  }_{ R }{ R }_{ i }+{ \beta  }_{ A}{ A }_{ i } & \text{<- linear model } \\ \alpha  & \sim  & Normal(10,10) & \text{<- }\alpha \text{ prior } \\ { \beta  }_{ R } & \sim  & Normal(0,1) & \text{<- }{ \beta  }_{ R }\text{ prior } \\ { \beta  }_{ A } & \sim  & Normal(0,1) & \text{<- }{ \beta  }_{ A } \text{ prior} \\ \sigma  & \sim  & Cauchy(0,1) & \text{<- }\sigma \text{ prior } \end{eqnarray}$$
+$$\begin{eqnarray} { D }_{ i } & \sim  & \text{Normal}({ \mu  }_{ i },\sigma ) & \text{<- likelihood } \\ { \mu  }_{ i } & = & \alpha +{ \beta  }_{ R }{ R }_{ i }+{ \beta  }_{ A}{ A }_{ i } & \text{<- linear model } \\ \alpha  & \sim  & \text{Normal}(10,10) & \text{<- }\alpha \text{ prior } \\ { \beta  }_{ R } & \sim  & \text{Normal}(0,1) & \text{<- }{ \beta  }_{ R }\text{ prior } \\ { \beta  }_{ A } & \sim  & \text{Normal}(0,1) & \text{<- }{ \beta  }_{ A } \text{ prior} \\ \sigma  & \sim  & \text{Cauchy}(0,1) & \text{<- }\sigma \text{ prior } \end{eqnarray}$$
 
 What does it mean ${ \mu  }_{ i } = \alpha +{ \beta  }_{ R }{ R }_{ i }+{ \beta  }_{ A}{ A }_{ i }$? It can be interpreted as: _A State’s divorce rate can be a function of its marriage rate **or** its median age at marriage_. The “or” indicates independent associations, which may be purely statistical or rather causal.
 
@@ -97,7 +97,7 @@ From the picture, it can be concluded that *once we know median age at marriage 
 #### 5.1.3.1. Predictor residual plots
 A predictor variable residual is the average prediction error when we use all of the other predictor variables to model a predictor of interest.
 
-$$\begin{eqnarray} { R }_{ i } & \sim  & Normal({ \mu  }_{ i },\sigma ) & \text{<- likelihood } \\ { \mu  }_{ i } & = & \alpha +{ \beta  }_{ A}{ A }_{ i } & \text{<- linear model } \\ \alpha  & \sim  & Normal(0,10) & \text{<- }\alpha \text{ prior } \\ { \beta  }_{ A } & \sim  & Normal(0,1) & \text{<- }{ \beta  }_{ A } \text{ prior} \\ \sigma  & \sim  & Cauchy(0,1) & \text{<- }\sigma \text{ prior } \end{eqnarray}$$
+$$\begin{eqnarray} { R }_{ i } & \sim  & \text{Normal}({ \mu  }_{ i },\sigma ) & \text{<- likelihood } \\ { \mu  }_{ i } & = & \alpha +{ \beta  }_{ A}{ A }_{ i } & \text{<- linear model } \\ \alpha  & \sim  & \text{Normal}(0,10) & \text{<- }\alpha \text{ prior } \\ { \beta  }_{ A } & \sim  & \text{Normal}(0,1) & \text{<- }{ \beta  }_{ A } \text{ prior} \\ \sigma  & \sim  & \text{Cauchy}(0,1) & \text{<- }\sigma \text{ prior } \end{eqnarray}$$
 
 ```{r message=FALSE, cache=TRUE}
 m5.4 <- brm(Marriage.s ~ 1 + MedianAgeMarriage.s, 
