@@ -1,0 +1,1750 @@
+---
+title: Notes on Statistical Rethinking (Chapter 10 - Counting and Classification)
+author: José Roberto Ayala Solares
+date: '2018-04-26'
+slug: notes-on-statistical-rethinking-chapter-10-counting-and-classification
+categories:
+  - StatisticalRethinking
+tags:
+  - bayesian
+  - notes
+summary: Notes for Chapter 10 of [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/)
+---
+
+
+
+<div id="binomial-regression" class="section level2">
+<h2>10.1. Binomial regression</h2>
+<blockquote>
+<p>A family of related procedures that model a binary classification for which the total of both categories is known.</p>
+</blockquote>
+<p>The binomial distribution is denoted as:</p>
+<p><span class="math display">\[y \sim \text{Binomial}\left( n,p \right) \]</span></p>
+<p>where <span class="math inline">\(y\)</span> is a count (zero or a positive whole number), <span class="math inline">\(p\)</span> is the probability any particular “trial” is a success, and <span class="math inline">\(n\)</span> is the number of trials.</p>
+<p>{{% alert note %}} As the basis for a generalized linear model, the binomial distribution has maximum entropy when each trial must result in one of two events and the expected value is constant. {{% /alert %}}</p>
+<blockquote>
+<p>There are two common flavors of GLM that use binomial likelihood functions:</p>
+</blockquote>
+<blockquote>
+<ol style="list-style-type: decimal">
+<li><strong>Logistic regression</strong> is the common name when the data are organized into single-trial cases, such that the outcome variable can only take values 0 and 1.</li>
+<li>When individual trials with the same covariate values are instead aggregated together, it is common to speak of an <strong>aggregated binomial regression</strong>. In this case, the outcome can take the value zero or any positive integer up to n, the number of trials.</li>
+</ol>
+</blockquote>
+<p>{{% alert warning %}} It is important to never convert counts to proportions before analysis, because doing so destroys information about sample size. {{% /alert %}}</p>
+<div id="logistic-regression-prosocial-chimpanzees" class="section level3">
+<h3>10.1.1. Logistic regression: Prosocial chimpanzees</h3>
+<pre class="r"><code>library(rethinking)
+data(chimpanzees)
+d &lt;- chimpanzees
+detach(package:rethinking)
+rm(chimpanzees)
+
+library(brms)</code></pre>
+<pre><code>## Warning: package &#39;brms&#39; was built under R version 3.4.4</code></pre>
+<pre><code>## Warning: package &#39;Rcpp&#39; was built under R version 3.4.4</code></pre>
+<pre class="r"><code>library(tidyverse)
+glimpse(d)</code></pre>
+<pre><code>## Observations: 504
+## Variables: 8
+## $ actor        &lt;int&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1...
+## $ recipient    &lt;int&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N...
+## $ condition    &lt;int&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0...
+## $ block        &lt;int&gt; 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3...
+## $ trial        &lt;int&gt; 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 2...
+## $ prosoc_left  &lt;int&gt; 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1...
+## $ chose_prosoc &lt;int&gt; 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0...
+## $ pulled_left  &lt;int&gt; 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0...</code></pre>
+<blockquote>
+<p>The outcome <code>pulled_left</code> is a 0 or 1 indicator that the focal animal pulled the left-hand lever. The predictor <code>prosoc_left</code> is a 0/1 indicator that the left-hand lever was (1) or was not (0) attached to the prosocial option, the side with two pieces of food. The <code>condition</code> predictor is another 0/1 indicator, with value 1 for the partner condition and value 0 for the control condition.</p>
+</blockquote>
+<p><span class="math display">\[\begin{eqnarray} { L }_{ i } &amp; \sim  &amp; \text{Bernoulli}\left( p_i \right) \\ \text{ logit} \left( { p }_{ i } \right) &amp; = &amp; \alpha + \left( { \beta  }_{ P } + { \beta  }_{ PC } C_i \right) P_i \\ \alpha  &amp; \sim  &amp; \text{Normal}(0,10) \\ { \beta  }_{ P } &amp; \sim  &amp; \text{Normal}(0,10) \\ { \beta  }_{ PC }  &amp; \sim  &amp; \text{Normal}(0,10) \end{eqnarray}\]</span></p>
+<blockquote>
+<p>Here <span class="math inline">\(L\)</span> indicates <code>pulled_left</code>, <span class="math inline">\(P\)</span> indicates <code>prosoc_left</code>, and <span class="math inline">\(C\)</span> indicates <code>condition</code>. The tricky part of the model above is the linear model for <span class="math inline">\(\text{logit} \left( { p }_{ i } \right)\)</span>. It is an interaction model, in which the association between <span class="math inline">\(P_i\)</span> and the log-odds that <span class="math inline">\(L_i = 1\)</span> depends upon the value of <span class="math inline">\(C_i\)</span>. But note that there is no main effect of <span class="math inline">\(C_i\)</span> itself, no plain beta-coefficient for condition. Why? Because there is no reason to hypothesize that the presence or absence of another animal creates a tendency to pull the left-hand lever. This is equivalent to assuming that the main effect of condition is exactly zero.</p>
+</blockquote>
+<pre class="r"><code>m10.1 &lt;-
+    brm(data = d, family = bernoulli,
+        pulled_left ~ 1,
+        prior = c(set_prior(&quot;normal(0, 10)&quot;, class = &quot;Intercept&quot;)))</code></pre>
+<pre><code>## 
+## SAMPLING FOR MODEL &#39;bernoulli brms-model&#39; NOW (CHAIN 1).
+## 
+## Gradient evaluation took 3.4e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.34 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## Iteration:    1 / 2000 [  0%]  (Warmup)
+## Iteration:  200 / 2000 [ 10%]  (Warmup)
+## Iteration:  400 / 2000 [ 20%]  (Warmup)
+## Iteration:  600 / 2000 [ 30%]  (Warmup)
+## Iteration:  800 / 2000 [ 40%]  (Warmup)
+## Iteration: 1000 / 2000 [ 50%]  (Warmup)
+## Iteration: 1001 / 2000 [ 50%]  (Sampling)
+## Iteration: 1200 / 2000 [ 60%]  (Sampling)
+## Iteration: 1400 / 2000 [ 70%]  (Sampling)
+## Iteration: 1600 / 2000 [ 80%]  (Sampling)
+## Iteration: 1800 / 2000 [ 90%]  (Sampling)
+## Iteration: 2000 / 2000 [100%]  (Sampling)
+## 
+##  Elapsed Time: 0.084293 seconds (Warm-up)
+##                0.077886 seconds (Sampling)
+##                0.162179 seconds (Total)
+## 
+## 
+## SAMPLING FOR MODEL &#39;bernoulli brms-model&#39; NOW (CHAIN 2).
+## 
+## Gradient evaluation took 2.5e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.25 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## Iteration:    1 / 2000 [  0%]  (Warmup)
+## Iteration:  200 / 2000 [ 10%]  (Warmup)
+## Iteration:  400 / 2000 [ 20%]  (Warmup)
+## Iteration:  600 / 2000 [ 30%]  (Warmup)
+## Iteration:  800 / 2000 [ 40%]  (Warmup)
+## Iteration: 1000 / 2000 [ 50%]  (Warmup)
+## Iteration: 1001 / 2000 [ 50%]  (Sampling)
+## Iteration: 1200 / 2000 [ 60%]  (Sampling)
+## Iteration: 1400 / 2000 [ 70%]  (Sampling)
+## Iteration: 1600 / 2000 [ 80%]  (Sampling)
+## Iteration: 1800 / 2000 [ 90%]  (Sampling)
+## Iteration: 2000 / 2000 [100%]  (Sampling)
+## 
+##  Elapsed Time: 0.085515 seconds (Warm-up)
+##                0.082236 seconds (Sampling)
+##                0.167751 seconds (Total)
+## 
+## 
+## SAMPLING FOR MODEL &#39;bernoulli brms-model&#39; NOW (CHAIN 3).
+## 
+## Gradient evaluation took 2.7e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.27 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## Iteration:    1 / 2000 [  0%]  (Warmup)
+## Iteration:  200 / 2000 [ 10%]  (Warmup)
+## Iteration:  400 / 2000 [ 20%]  (Warmup)
+## Iteration:  600 / 2000 [ 30%]  (Warmup)
+## Iteration:  800 / 2000 [ 40%]  (Warmup)
+## Iteration: 1000 / 2000 [ 50%]  (Warmup)
+## Iteration: 1001 / 2000 [ 50%]  (Sampling)
+## Iteration: 1200 / 2000 [ 60%]  (Sampling)
+## Iteration: 1400 / 2000 [ 70%]  (Sampling)
+## Iteration: 1600 / 2000 [ 80%]  (Sampling)
+## Iteration: 1800 / 2000 [ 90%]  (Sampling)
+## Iteration: 2000 / 2000 [100%]  (Sampling)
+## 
+##  Elapsed Time: 0.084052 seconds (Warm-up)
+##                0.079741 seconds (Sampling)
+##                0.163793 seconds (Total)
+## 
+## 
+## SAMPLING FOR MODEL &#39;bernoulli brms-model&#39; NOW (CHAIN 4).
+## 
+## Gradient evaluation took 2.6e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.26 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## Iteration:    1 / 2000 [  0%]  (Warmup)
+## Iteration:  200 / 2000 [ 10%]  (Warmup)
+## Iteration:  400 / 2000 [ 20%]  (Warmup)
+## Iteration:  600 / 2000 [ 30%]  (Warmup)
+## Iteration:  800 / 2000 [ 40%]  (Warmup)
+## Iteration: 1000 / 2000 [ 50%]  (Warmup)
+## Iteration: 1001 / 2000 [ 50%]  (Sampling)
+## Iteration: 1200 / 2000 [ 60%]  (Sampling)
+## Iteration: 1400 / 2000 [ 70%]  (Sampling)
+## Iteration: 1600 / 2000 [ 80%]  (Sampling)
+## Iteration: 1800 / 2000 [ 90%]  (Sampling)
+## Iteration: 2000 / 2000 [100%]  (Sampling)
+## 
+##  Elapsed Time: 0.085358 seconds (Warm-up)
+##                0.07861 seconds (Sampling)
+##                0.163968 seconds (Total)</code></pre>
+<pre class="r"><code>posterior_samples(m10.1) %&gt;%
+    select(-lp__) %&gt;% 
+    gather(parameter) %&gt;%
+    group_by(parameter) %&gt;%
+    summarise(mean = mean(value),
+              SD   = sd(value),
+              `2.5_percentile`  = quantile(value, probs = .025),
+              `97.5_percentile` = quantile(value, probs = .975)) %&gt;%
+    mutate_if(is.numeric, round, digits = 2)</code></pre>
+<pre><code>## # A tibble: 1 x 5
+##   parameter    mean     SD `2.5_percentile` `97.5_percentile`
+##   &lt;chr&gt;       &lt;dbl&gt;  &lt;dbl&gt;            &lt;dbl&gt;             &lt;dbl&gt;
+## 1 b_Intercept 0.320 0.0900            0.140             0.490</code></pre>
+<pre class="r"><code>invlogit &lt;- function(x){1/(1 + exp(-x))}
+
+fixef(m10.1) %&gt;%
+    invlogit()</code></pre>
+<pre><code>##            Estimate Est.Error   2.5%ile 97.5%ile
+## Intercept 0.5793132 0.5224532 0.5348122  0.61962</code></pre>
+<pre class="r"><code>m10.2 &lt;-
+    brm(data = d, family = bernoulli,
+        pulled_left ~ 1 + prosoc_left,
+        prior = c(set_prior(&quot;normal(0, 10)&quot;, class = &quot;Intercept&quot;),
+                  set_prior(&quot;normal(0, 10)&quot;, class = &quot;b&quot;)))</code></pre>
+<pre><code>## 
+## SAMPLING FOR MODEL &#39;bernoulli brms-model&#39; NOW (CHAIN 1).
+## 
+## Gradient evaluation took 7.2e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.72 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## Iteration:    1 / 2000 [  0%]  (Warmup)
+## Iteration:  200 / 2000 [ 10%]  (Warmup)
+## Iteration:  400 / 2000 [ 20%]  (Warmup)
+## Iteration:  600 / 2000 [ 30%]  (Warmup)
+## Iteration:  800 / 2000 [ 40%]  (Warmup)
+## Iteration: 1000 / 2000 [ 50%]  (Warmup)
+## Iteration: 1001 / 2000 [ 50%]  (Sampling)
+## Iteration: 1200 / 2000 [ 60%]  (Sampling)
+## Iteration: 1400 / 2000 [ 70%]  (Sampling)
+## Iteration: 1600 / 2000 [ 80%]  (Sampling)
+## Iteration: 1800 / 2000 [ 90%]  (Sampling)
+## Iteration: 2000 / 2000 [100%]  (Sampling)
+## 
+##  Elapsed Time: 0.176018 seconds (Warm-up)
+##                0.149585 seconds (Sampling)
+##                0.325603 seconds (Total)
+## 
+## 
+## SAMPLING FOR MODEL &#39;bernoulli brms-model&#39; NOW (CHAIN 2).
+## 
+## Gradient evaluation took 3.8e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.38 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## Iteration:    1 / 2000 [  0%]  (Warmup)
+## Iteration:  200 / 2000 [ 10%]  (Warmup)
+## Iteration:  400 / 2000 [ 20%]  (Warmup)
+## Iteration:  600 / 2000 [ 30%]  (Warmup)
+## Iteration:  800 / 2000 [ 40%]  (Warmup)
+## Iteration: 1000 / 2000 [ 50%]  (Warmup)
+## Iteration: 1001 / 2000 [ 50%]  (Sampling)
+## Iteration: 1200 / 2000 [ 60%]  (Sampling)
+## Iteration: 1400 / 2000 [ 70%]  (Sampling)
+## Iteration: 1600 / 2000 [ 80%]  (Sampling)
+## Iteration: 1800 / 2000 [ 90%]  (Sampling)
+## Iteration: 2000 / 2000 [100%]  (Sampling)
+## 
+##  Elapsed Time: 0.185182 seconds (Warm-up)
+##                0.192381 seconds (Sampling)
+##                0.377563 seconds (Total)
+## 
+## 
+## SAMPLING FOR MODEL &#39;bernoulli brms-model&#39; NOW (CHAIN 3).
+## 
+## Gradient evaluation took 4.1e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.41 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## Iteration:    1 / 2000 [  0%]  (Warmup)
+## Iteration:  200 / 2000 [ 10%]  (Warmup)
+## Iteration:  400 / 2000 [ 20%]  (Warmup)
+## Iteration:  600 / 2000 [ 30%]  (Warmup)
+## Iteration:  800 / 2000 [ 40%]  (Warmup)
+## Iteration: 1000 / 2000 [ 50%]  (Warmup)
+## Iteration: 1001 / 2000 [ 50%]  (Sampling)
+## Iteration: 1200 / 2000 [ 60%]  (Sampling)
+## Iteration: 1400 / 2000 [ 70%]  (Sampling)
+## Iteration: 1600 / 2000 [ 80%]  (Sampling)
+## Iteration: 1800 / 2000 [ 90%]  (Sampling)
+## Iteration: 2000 / 2000 [100%]  (Sampling)
+## 
+##  Elapsed Time: 0.175515 seconds (Warm-up)
+##                0.225489 seconds (Sampling)
+##                0.401004 seconds (Total)
+## 
+## 
+## SAMPLING FOR MODEL &#39;bernoulli brms-model&#39; NOW (CHAIN 4).
+## 
+## Gradient evaluation took 4e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.4 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## Iteration:    1 / 2000 [  0%]  (Warmup)
+## Iteration:  200 / 2000 [ 10%]  (Warmup)
+## Iteration:  400 / 2000 [ 20%]  (Warmup)
+## Iteration:  600 / 2000 [ 30%]  (Warmup)
+## Iteration:  800 / 2000 [ 40%]  (Warmup)
+## Iteration: 1000 / 2000 [ 50%]  (Warmup)
+## Iteration: 1001 / 2000 [ 50%]  (Sampling)
+## Iteration: 1200 / 2000 [ 60%]  (Sampling)
+## Iteration: 1400 / 2000 [ 70%]  (Sampling)
+## Iteration: 1600 / 2000 [ 80%]  (Sampling)
+## Iteration: 1800 / 2000 [ 90%]  (Sampling)
+## Iteration: 2000 / 2000 [100%]  (Sampling)
+## 
+##  Elapsed Time: 0.172129 seconds (Warm-up)
+##                0.138978 seconds (Sampling)
+##                0.311107 seconds (Total)</code></pre>
+<pre class="r"><code>m10.3 &lt;-
+    brm(data = d, family = bernoulli,
+        pulled_left ~ 1 + prosoc_left + condition:prosoc_left ,
+        prior = c(set_prior(&quot;normal(0, 10)&quot;, class = &quot;Intercept&quot;),
+                  set_prior(&quot;normal(0, 10)&quot;, class = &quot;b&quot;)))</code></pre>
+<pre><code>## 
+## SAMPLING FOR MODEL &#39;bernoulli brms-model&#39; NOW (CHAIN 1).
+## 
+## Gradient evaluation took 7.1e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.71 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## Iteration:    1 / 2000 [  0%]  (Warmup)
+## Iteration:  200 / 2000 [ 10%]  (Warmup)
+## Iteration:  400 / 2000 [ 20%]  (Warmup)
+## Iteration:  600 / 2000 [ 30%]  (Warmup)
+## Iteration:  800 / 2000 [ 40%]  (Warmup)
+## Iteration: 1000 / 2000 [ 50%]  (Warmup)
+## Iteration: 1001 / 2000 [ 50%]  (Sampling)
+## Iteration: 1200 / 2000 [ 60%]  (Sampling)
+## Iteration: 1400 / 2000 [ 70%]  (Sampling)
+## Iteration: 1600 / 2000 [ 80%]  (Sampling)
+## Iteration: 1800 / 2000 [ 90%]  (Sampling)
+## Iteration: 2000 / 2000 [100%]  (Sampling)
+## 
+##  Elapsed Time: 0.250538 seconds (Warm-up)
+##                0.221084 seconds (Sampling)
+##                0.471622 seconds (Total)
+## 
+## 
+## SAMPLING FOR MODEL &#39;bernoulli brms-model&#39; NOW (CHAIN 2).
+## 
+## Gradient evaluation took 4.1e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.41 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## Iteration:    1 / 2000 [  0%]  (Warmup)
+## Iteration:  200 / 2000 [ 10%]  (Warmup)
+## Iteration:  400 / 2000 [ 20%]  (Warmup)
+## Iteration:  600 / 2000 [ 30%]  (Warmup)
+## Iteration:  800 / 2000 [ 40%]  (Warmup)
+## Iteration: 1000 / 2000 [ 50%]  (Warmup)
+## Iteration: 1001 / 2000 [ 50%]  (Sampling)
+## Iteration: 1200 / 2000 [ 60%]  (Sampling)
+## Iteration: 1400 / 2000 [ 70%]  (Sampling)
+## Iteration: 1600 / 2000 [ 80%]  (Sampling)
+## Iteration: 1800 / 2000 [ 90%]  (Sampling)
+## Iteration: 2000 / 2000 [100%]  (Sampling)
+## 
+##  Elapsed Time: 0.242482 seconds (Warm-up)
+##                0.221852 seconds (Sampling)
+##                0.464334 seconds (Total)
+## 
+## 
+## SAMPLING FOR MODEL &#39;bernoulli brms-model&#39; NOW (CHAIN 3).
+## 
+## Gradient evaluation took 4.1e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.41 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## Iteration:    1 / 2000 [  0%]  (Warmup)
+## Iteration:  200 / 2000 [ 10%]  (Warmup)
+## Iteration:  400 / 2000 [ 20%]  (Warmup)
+## Iteration:  600 / 2000 [ 30%]  (Warmup)
+## Iteration:  800 / 2000 [ 40%]  (Warmup)
+## Iteration: 1000 / 2000 [ 50%]  (Warmup)
+## Iteration: 1001 / 2000 [ 50%]  (Sampling)
+## Iteration: 1200 / 2000 [ 60%]  (Sampling)
+## Iteration: 1400 / 2000 [ 70%]  (Sampling)
+## Iteration: 1600 / 2000 [ 80%]  (Sampling)
+## Iteration: 1800 / 2000 [ 90%]  (Sampling)
+## Iteration: 2000 / 2000 [100%]  (Sampling)
+## 
+##  Elapsed Time: 0.252006 seconds (Warm-up)
+##                0.230375 seconds (Sampling)
+##                0.482381 seconds (Total)
+## 
+## 
+## SAMPLING FOR MODEL &#39;bernoulli brms-model&#39; NOW (CHAIN 4).
+## 
+## Gradient evaluation took 4e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.4 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## Iteration:    1 / 2000 [  0%]  (Warmup)
+## Iteration:  200 / 2000 [ 10%]  (Warmup)
+## Iteration:  400 / 2000 [ 20%]  (Warmup)
+## Iteration:  600 / 2000 [ 30%]  (Warmup)
+## Iteration:  800 / 2000 [ 40%]  (Warmup)
+## Iteration: 1000 / 2000 [ 50%]  (Warmup)
+## Iteration: 1001 / 2000 [ 50%]  (Sampling)
+## Iteration: 1200 / 2000 [ 60%]  (Sampling)
+## Iteration: 1400 / 2000 [ 70%]  (Sampling)
+## Iteration: 1600 / 2000 [ 80%]  (Sampling)
+## Iteration: 1800 / 2000 [ 90%]  (Sampling)
+## Iteration: 2000 / 2000 [100%]  (Sampling)
+## 
+##  Elapsed Time: 0.243349 seconds (Warm-up)
+##                0.23 seconds (Sampling)
+##                0.473349 seconds (Total)</code></pre>
+<p>Using the <code>loo</code> package to make the comparison:</p>
+<pre class="r"><code>w_m10.1 &lt;- waic(m10.1)
+w_m10.2 &lt;- waic(m10.2)
+w_m10.3 &lt;- waic(m10.3)
+loo::compare(w_m10.1, w_m10.2, w_m10.3)</code></pre>
+<pre><code>##         elpd_diff se_diff elpd_waic p_waic waic  
+## w_m10.2    0.0       0.0  -340.2       2.0  680.5
+## w_m10.3   -1.0       0.4  -341.2       3.1  682.5
+## w_m10.1   -3.7       3.1  -344.0       1.0  687.9</code></pre>
+<pre class="r"><code>library(wesanderson)</code></pre>
+<pre><code>## Warning: package &#39;wesanderson&#39; was built under R version 3.4.4</code></pre>
+<pre class="r"><code>wes_palette(&quot;Moonrise1&quot;)</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<pre class="r"><code>library(ggthemes)
+library(bayesplot)</code></pre>
+<pre><code>## Warning: package &#39;bayesplot&#39; was built under R version 3.4.4</code></pre>
+<pre><code>## This is bayesplot version 1.5.0</code></pre>
+<pre><code>## - Plotting theme set to bayesplot::theme_default()</code></pre>
+<pre><code>## - Online documentation at mc-stan.org/bayesplot</code></pre>
+<pre class="r"><code>theme_set(theme_default() + 
+            theme_tufte() +
+            theme(plot.background = element_rect(fill = wes_palette(&quot;Moonrise1&quot;)[3],
+                                                 color = wes_palette(&quot;Moonrise1&quot;)[3])))</code></pre>
+<pre class="r"><code>tibble(model = c(&quot;m10.1&quot;, &quot;m10.2&quot;, &quot;m10.3&quot;),
+       waic  = c(w_m10.1$estimates[3, 1], w_m10.2$estimates[3, 1], w_m10.3$estimates[3, 1]),
+       se    = c(w_m10.1$estimates[3, 2], w_m10.2$estimates[3, 2], w_m10.3$estimates[3, 2])) %&gt;%
+    ggplot() +
+    geom_pointrange(aes(x = reorder(model, -waic), y = waic,
+                        ymin = waic - se,
+                        ymax = waic + se,
+                        color = model),
+                    shape = 16) +
+    scale_color_manual(values = wes_palette(&quot;Moonrise1&quot;)[c(1:2, 4)]) +
+    coord_flip() +
+    labs(x = NULL, y = NULL,
+         title = &quot;WAIC&quot;) +
+    theme(axis.ticks.y = element_blank(),
+          legend.position = &quot;none&quot;)</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<pre class="r"><code># this helps us set our custom color scheme
+color_scheme_set(c(wes_palette(&quot;Moonrise2&quot;)[3], 
+                   wes_palette(&quot;Moonrise2&quot;)[1], 
+                   wes_palette(&quot;Moonrise2&quot;)[2], 
+                   wes_palette(&quot;Moonrise2&quot;)[2], 
+                   wes_palette(&quot;Moonrise2&quot;)[1], 
+                   wes_palette(&quot;Moonrise2&quot;)[1]))
+
+# the actual plot
+mcmc_pairs(x = posterior_samples(m10.3),
+           pars = c(&quot;b_Intercept&quot;, &quot;b_prosoc_left&quot;, &quot;b_prosoc_left:condition&quot;),
+           off_diag_args = list(size = 1/10, alpha = 1/6),
+           diag_fun = &quot;dens&quot;)</code></pre>
+<pre><code>## Warning in mcmc_pairs(x = posterior_samples(m10.3), pars =
+## c(&quot;b_Intercept&quot;, : Only one chain in &#39;x&#39;. This plot is more useful with
+## multiple chains.</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<p>{{% alert note %}} The <strong>absolute effect</strong> of a parameter is the change in the probability of the outcome. So it depends upon all of the parameters, and it tells us the practical impact of a change in a predictor. The <strong>relative effect</strong> is instead just a proportional change induced by a change in the predictor. {{% /alert %}}</p>
+<blockquote>
+<p>The customary measure of relative effect for a logistic model is the proportional change in odds.</p>
+</blockquote>
+<pre class="r"><code>fixef(m10.3)[2] %&gt;%
+    exp()</code></pre>
+<pre><code>## [1] 1.847594</code></pre>
+<pre class="r"><code>(4 + fixef(m10.3)[2]) %&gt;%
+    invlogit()</code></pre>
+<pre><code>## [1] 0.9901841</code></pre>
+<pre class="r"><code># The combined fitted() results of the three models weighted by their WAICs
+pp_a &lt;- 
+    pp_average(m10.1, m10.2, m10.3,
+               weights = &quot;waic&quot;,
+               method = &quot;fitted&quot;) %&gt;% 
+    as_tibble() %&gt;% 
+    bind_cols(m10.3$data) %&gt;% 
+    distinct(Estimate, `2.5%ile`, `97.5%ile`, condition, prosoc_left) %&gt;% 
+    mutate(x_axis = str_c(prosoc_left, condition, sep = &quot;/&quot;)) %&gt;%
+    mutate(x_axis = factor(x_axis, levels = c(&quot;0/0&quot;, &quot;1/0&quot;, &quot;0/1&quot;, &quot;1/1&quot;))) %&gt;% 
+    rename(pulled_left = Estimate)
+
+# The empirically-based summaries
+d_plot &lt;-
+    d %&gt;%
+    group_by(actor, condition, prosoc_left) %&gt;%
+    summarise(pulled_left = mean(pulled_left)) %&gt;%
+    mutate(x_axis = str_c(prosoc_left, condition, sep = &quot;/&quot;)) %&gt;%
+    mutate(x_axis = factor(x_axis, levels = c(&quot;0/0&quot;, &quot;1/0&quot;, &quot;0/1&quot;, &quot;1/1&quot;)))
+
+# The plot
+ggplot() +
+    geom_ribbon(data = pp_a,
+                aes(x = x_axis,
+                    ymin = `2.5%ile`, 
+                    ymax = `97.5%ile`,
+                    group = 0),
+                fill = wes_palette(&quot;Moonrise1&quot;)[2]) +
+    geom_line(data = pp_a,
+              aes(x = x_axis, 
+                  y = pulled_left,
+                  group = 0),
+              color = wes_palette(&quot;Moonrise1&quot;)[1]) +
+    geom_line(data = d_plot,
+              aes(x = x_axis, y = pulled_left, group = actor),
+              color = wes_palette(&quot;Moonrise1&quot;)[4], size = 1/3) +
+    scale_x_discrete(expand = c(.03, .03)) +
+    coord_cartesian(ylim = 0:1) +
+    labs(x = &quot;prosoc_left/condition&quot;,
+         y = &quot;proportion pulled left&quot;) +
+    theme(axis.ticks.x = element_blank())</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
+<blockquote>
+<p>The model did what we asked it to do: Estimate the average across all chimpanzees. But there is a lot of variation among individuals. In principle, individual variation could mask the association of interest.</p>
+</blockquote>
+<p><span class="math display">\[\begin{eqnarray} { L }_{ i } &amp; \sim  &amp; \text{Bernoulli}\left( p_i \right) \\ \text{ logit} \left( { p }_{ i } \right) &amp; = &amp; \alpha_{\text{ACTOR}\left[ i \right]} + \left( { \beta  }_{ P } + { \beta  }_{ PC } C_i \right) P_i \\ \alpha_{\text{ACTOR}\left[ i \right]}  &amp; \sim  &amp; \text{Normal}(0,10) \\ { \beta  }_{ P } &amp; \sim  &amp; \text{Normal}(0,10) \\ { \beta  }_{ PC }  &amp; \sim  &amp; \text{Normal}(0,10) \end{eqnarray}\]</span></p>
+<pre class="r"><code>m10.4 &lt;-
+    brm(data = d, family = bernoulli,
+        pulled_left ~ 0 + factor(actor) + prosoc_left + condition:prosoc_left ,
+        prior = c(set_prior(&quot;normal(0, 10)&quot;, class = &quot;b&quot;)),
+        chains = 2, iter = 2500, warmup = 500, cores = 2,
+        control = list(adapt_delta = 0.9))
+
+print(m10.4)</code></pre>
+<pre><code>##  Family: bernoulli 
+##   Links: mu = logit 
+## Formula: pulled_left ~ 0 + factor(actor) + prosoc_left + condition:prosoc_left 
+##    Data: d (Number of observations: 504) 
+## Samples: 2 chains, each with iter = 2500; warmup = 500; thin = 1; 
+##          total post-warmup samples = 4000
+##     ICs: LOO = NA; WAIC = NA; R2 = NA
+##  
+## Population-Level Effects: 
+##                       Estimate Est.Error l-95% CI u-95% CI Eff.Sample Rhat
+## factoractor1             -0.75      0.28    -1.30    -0.21       4000 1.00
+## factoractor2             10.76      5.18     3.94    22.95       1866 1.00
+## factoractor3             -1.06      0.28    -1.62    -0.51       4000 1.00
+## factoractor4             -1.06      0.28    -1.61    -0.51       4000 1.00
+## factoractor5             -0.75      0.27    -1.28    -0.21       4000 1.00
+## factoractor6              0.21      0.27    -0.29     0.74       3736 1.00
+## factoractor7              1.81      0.39     1.06     2.62       4000 1.00
+## prosoc_left               0.85      0.27     0.34     1.36       2877 1.00
+## prosoc_left:condition    -0.14      0.31    -0.76     0.47       3629 1.00
+## 
+## Samples were drawn using sampling(NUTS). For each parameter, Eff.Sample 
+## is a crude measure of effective sample size, and Rhat is the potential 
+## scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
+<pre class="r"><code>posterior_samples(m10.4) %&gt;%
+    ggplot(aes(x = b_factoractor2)) +
+    geom_density(color = &quot;transparent&quot;,
+                 fill = wes_palette(&quot;Moonrise2&quot;)[1]) +
+    scale_y_continuous(NULL, breaks = NULL) +
+    labs(x = NULL,
+         title = &quot;Actor 2&#39;s large and uncertain intercept&quot;,
+         subtitle = &quot;Once your log-odds are above, like, 4, it&#39;s all\npretty much a probability of 1.&quot;)</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
+<pre class="r"><code>d_plot_4 &lt;-
+    d_plot %&gt;%
+    filter(actor %in% c(3, 5:7)) %&gt;%
+    ungroup() %&gt;% 
+    mutate(actor = str_c(&quot;actor &quot;, actor))
+
+fitted(m10.4) %&gt;%
+    as_tibble() %&gt;% 
+    bind_cols(m10.4$data) %&gt;% 
+    filter(actor %in% c(3, 5:7)) %&gt;% 
+    distinct(Estimate, `2.5%ile`, `97.5%ile`, condition, prosoc_left, actor) %&gt;% 
+    select(actor, everything()) %&gt;% 
+    mutate(actor = str_c(&quot;actor &quot;, actor)) %&gt;% 
+    mutate(x_axis = str_c(prosoc_left, condition, sep = &quot;/&quot;)) %&gt;%
+    mutate(x_axis = factor(x_axis, levels = c(&quot;0/0&quot;, &quot;1/0&quot;, &quot;0/1&quot;, &quot;1/1&quot;))) %&gt;% 
+    rename(pulled_left = Estimate) %&gt;%
+    ggplot(aes(x = x_axis, y = pulled_left, group = actor)) +
+    geom_ribbon(aes(x = x_axis,
+                    ymin = `2.5%ile`, 
+                    ymax = `97.5%ile`),
+                fill = wes_palette(&quot;Moonrise2&quot;)[2]) +
+    geom_line(aes(x = x_axis, 
+                  y = pulled_left)) +
+    geom_line(data = d_plot_4,
+              color = wes_palette(&quot;Moonrise2&quot;)[1], size = 1.25) +
+    scale_x_discrete(expand = c(.03, .03)) +
+    coord_cartesian(ylim = 0:1) +
+    labs(x = &quot;prosoc_left/condition&quot;,
+         y = &quot;proportion pulled left&quot;) +
+    theme(axis.ticks.x = element_blank(),
+          # color came from: http://www.color-hex.com/color/ccc591
+          panel.background = element_rect(fill = &quot;#d1ca9c&quot;,
+                                          color = &quot;transparent&quot;)) +
+    facet_wrap(~actor)</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-14-1.png" width="672" /></p>
+</div>
+<div id="aggregated-binomial-chimpanzees-again-condensed" class="section level3">
+<h3>10.1.2. Aggregated binomial: Chimpanzees again, condensed</h3>
+<pre class="r"><code>d_aggregated &lt;-
+    d %&gt;%
+    select(-recipient, -block, -trial, -chose_prosoc) %&gt;%
+    group_by(actor, condition, prosoc_left) %&gt;%
+    summarise(x = sum(pulled_left))
+
+d_aggregated %&gt;%
+    slice(1:8)</code></pre>
+<pre><code>## # A tibble: 28 x 4
+## # Groups:   actor, condition [14]
+##    actor condition prosoc_left     x
+##    &lt;int&gt;     &lt;int&gt;       &lt;int&gt; &lt;int&gt;
+##  1     1         0           0     6
+##  2     1         0           1     9
+##  3     1         1           0     5
+##  4     1         1           1    10
+##  5     2         0           0    18
+##  6     2         0           1    18
+##  7     2         1           0    18
+##  8     2         1           1    18
+##  9     3         0           0     5
+## 10     3         0           1    11
+## # ... with 18 more rows</code></pre>
+<pre class="r"><code>m10.5 &lt;-
+    brm(data = d_aggregated, family = binomial,
+        x | trials(18) ~ 1 + prosoc_left + condition:prosoc_left ,
+        prior = c(set_prior(&quot;normal(0, 10)&quot;, class = &quot;Intercept&quot;),
+                  set_prior(&quot;normal(0, 10)&quot;, class = &quot;b&quot;)),
+        iter = 2500, warmup = 500, cores = 2, chains = 2)</code></pre>
+<p>Comparing the models:</p>
+<pre class="r"><code>fixef(m10.3) %&gt;% round(digits = 2)</code></pre>
+<pre><code>##                       Estimate Est.Error 2.5%ile 97.5%ile
+## Intercept                 0.05      0.13   -0.21     0.29
+## prosoc_left               0.61      0.23    0.17     1.08
+## prosoc_left:condition    -0.11      0.27   -0.63     0.42</code></pre>
+<pre class="r"><code>fixef(m10.5) %&gt;% round(digits = 2)</code></pre>
+<pre><code>##                       Estimate Est.Error 2.5%ile 97.5%ile
+## Intercept                 0.05      0.13   -0.21     0.29
+## prosoc_left               0.61      0.23    0.16     1.06
+## prosoc_left:condition    -0.10      0.27   -0.63     0.40</code></pre>
+</div>
+<div id="aggregated-binomial-graduate-school-admissions" class="section level3">
+<h3>10.1.3. Aggregated binomial: Graduate school admissions</h3>
+<pre class="r"><code>library(rethinking)</code></pre>
+<pre><code>## rethinking (Version 1.59)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;rethinking&#39;</code></pre>
+<pre><code>## The following object is masked from &#39;package:purrr&#39;:
+## 
+##     map</code></pre>
+<pre><code>## The following objects are masked from &#39;package:brms&#39;:
+## 
+##     LOO, stancode, WAIC</code></pre>
+<pre class="r"><code>data(UCBadmit)
+d &lt;- UCBadmit
+detach(package:rethinking)
+library(brms)
+rm(UCBadmit)
+
+d &lt;- 
+    d %&gt;%
+    mutate(male = ifelse(applicant.gender == &quot;male&quot;, 1, 0))
+
+d</code></pre>
+<pre><code>##    dept applicant.gender admit reject applications male
+## 1     A             male   512    313          825    1
+## 2     A           female    89     19          108    0
+## 3     B             male   353    207          560    1
+## 4     B           female    17      8           25    0
+## 5     C             male   120    205          325    1
+## 6     C           female   202    391          593    0
+## 7     D             male   138    279          417    1
+## 8     D           female   131    244          375    0
+## 9     E             male    53    138          191    1
+## 10    E           female    94    299          393    0
+## 11    F             male    22    351          373    1
+## 12    F           female    24    317          341    0</code></pre>
+<pre class="r"><code>m10.6 &lt;- brm(admit | trials(applications) ~ 1 + male, data = d, family = binomial,
+             prior = c(set_prior(&quot;normal(0, 10)&quot;, class = &quot;Intercept&quot;),
+                       set_prior(&quot;normal(0, 10)&quot;, class = &quot;b&quot;)),
+             iter = 2500, warmup = 500, cores = 2, chains = 2)
+
+m10.7 &lt;- brm(admit | trials(applications) ~ 1, data = d, family = binomial,
+             prior = c(set_prior(&quot;normal(0, 10)&quot;, class = &quot;Intercept&quot;)),
+             iter = 2500, warmup = 500, cores = 2, chains = 2)</code></pre>
+<pre class="r"><code>loo::compare(waic(m10.6), waic(m10.7))</code></pre>
+<pre><code>## elpd_diff        se 
+##     -27.3      82.3</code></pre>
+<pre class="r"><code>post &lt;- posterior_samples(m10.6)
+
+post %&gt;%
+    mutate(p_admit_male   = invlogit(b_Intercept + b_male),
+           p_admit_female = invlogit(b_Intercept),
+           diff_admit     = p_admit_male - p_admit_female) %&gt;%
+    summarise(`2.5%`  = quantile(diff_admit, probs = .025),
+              `50%`   = median(diff_admit),
+              `97.5%` = quantile(diff_admit, probs = .975))</code></pre>
+<pre><code>##        2.5%       50%     97.5%
+## 1 0.1138293 0.1417092 0.1694741</code></pre>
+<pre class="r"><code>d &lt;-
+    d %&gt;%
+    mutate(case = factor(1:12))
+
+p_10.6 &lt;- 
+    fitted(m10.6) %&gt;% 
+    as_tibble() %&gt;% 
+    bind_cols(d)
+
+d_text &lt;-
+    d %&gt;%
+    group_by(dept) %&gt;%
+    summarise(case = mean(as.numeric(case)),
+              admit = mean(admit/applications) + .05)
+
+ggplot(data = d, aes(x = case, y = admit/applications)) +
+    geom_pointrange(data = p_10.6, 
+                    aes(y = Estimate/applications,
+                        ymin = `2.5%ile`/applications ,
+                        ymax = `97.5%ile`/applications),
+                    color = wes_palette(&quot;Moonrise2&quot;)[1],
+                    shape = 1, alpha = 1/3) +
+    geom_point(color = wes_palette(&quot;Moonrise2&quot;)[2]) +
+    geom_line(aes(group = dept),
+              color = wes_palette(&quot;Moonrise2&quot;)[2]) +
+    geom_text(data = d_text,
+              aes(y = admit, label = dept),
+              color = wes_palette(&quot;Moonrise2&quot;)[2],
+              family = &quot;serif&quot;) +
+    coord_cartesian(ylim = 0:1) +
+    labs(y = &quot;Proportion admitted&quot;,
+         title = &quot;Posterior validation check&quot;) +
+    theme(axis.ticks.x = element_blank())</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-23-1.png" width="672" /></p>
+<pre class="r"><code>m10.8 &lt;-
+    brm(data = d, family = binomial,
+        admit | trials(applications) ~ 0 + dept,
+        prior = c(set_prior(&quot;normal(0, 10)&quot;, class = &quot;b&quot;)),
+        iter = 2500, warmup = 500, cores = 2, chains = 2)
+
+m10.9 &lt;-
+    brm(data = d, family = binomial,
+        admit | trials(applications) ~ 0 + dept + male ,
+        prior = c(set_prior(&quot;normal(0, 10)&quot;, class = &quot;b&quot;)),
+        iter = 2500, warmup = 500, cores = 2, chains = 2)</code></pre>
+<pre class="r"><code>fixef(m10.9) %&gt;% round(digits = 2)</code></pre>
+<pre><code>##       Estimate Est.Error 2.5%ile 97.5%ile
+## deptA     0.68      0.10    0.48     0.88
+## deptB     0.64      0.12    0.41     0.87
+## deptC    -0.58      0.08   -0.73    -0.44
+## deptD    -0.61      0.09   -0.79    -0.45
+## deptE    -1.06      0.10   -1.25    -0.87
+## deptF    -2.64      0.16   -2.95    -2.33
+## male     -0.10      0.08   -0.26     0.06</code></pre>
+<pre class="r"><code>m10.9$fit</code></pre>
+<pre><code>## Inference for Stan model: binomial brms-model.
+## 2 chains, each with iter=2500; warmup=500; thin=1; 
+## post-warmup draws per chain=2000, total post-warmup draws=4000.
+## 
+##           mean se_mean   sd   2.5%    25%    50%    75%  97.5% n_eff Rhat
+## b_deptA   0.68    0.00 0.10   0.48   0.61   0.68   0.75   0.88  1955 1.00
+## b_deptB   0.64    0.00 0.12   0.41   0.56   0.64   0.72   0.87  2098 1.00
+## b_deptC  -0.58    0.00 0.08  -0.73  -0.63  -0.58  -0.53  -0.44  4000 1.00
+## b_deptD  -0.61    0.00 0.09  -0.79  -0.67  -0.61  -0.56  -0.45  3132 1.00
+## b_deptE  -1.06    0.00 0.10  -1.25  -1.12  -1.06  -1.00  -0.87  4000 1.00
+## b_deptF  -2.64    0.00 0.16  -2.95  -2.74  -2.63  -2.53  -2.33  4000 1.00
+## b_male   -0.10    0.00 0.08  -0.26  -0.16  -0.10  -0.05   0.06  1600 1.01
+## lp__    -70.67    0.05 1.88 -75.16 -71.75 -70.36 -69.26 -68.00  1636 1.00
+## 
+## Samples were drawn using NUTS(diag_e) at Sat May  5 15:09:37 2018.
+## For each parameter, n_eff is a crude measure of effective sample size,
+## and Rhat is the potential scale reduction factor on split chains (at 
+## convergence, Rhat=1).</code></pre>
+<pre class="r"><code>loos &lt;- loo(m10.6, m10.7, m10.8, m10.9, 
+            reloo = T,
+            cores = 2)
+loos</code></pre>
+<pre><code>##                 LOOIC     SE
+## m10.6         1026.58 337.43
+## m10.7         1072.04 339.14
+## m10.8          117.68  23.50
+## m10.9          131.73  25.07
+## m10.6 - m10.7  -45.46 165.98
+## m10.6 - m10.8  908.90 331.46
+## m10.6 - m10.9  894.84 333.19
+## m10.7 - m10.8  954.36 330.87
+## m10.7 - m10.9  940.31 331.23
+## m10.8 - m10.9  -14.06   5.87</code></pre>
+<pre class="r"><code>d &lt;-
+    d %&gt;%
+    mutate(case = factor(1:12))
+
+p_10.9 &lt;- 
+    fitted(m10.9) %&gt;% 
+    as_tibble() %&gt;% 
+    bind_cols(d)
+
+d_text &lt;-
+    d %&gt;%
+    group_by(dept) %&gt;%
+    summarise(case = mean(as.numeric(case)),
+              admit = mean(admit/applications) + .05)
+
+ggplot(data = d, aes(x = case, y = admit/applications)) +
+    geom_pointrange(data = p_10.9, 
+                    aes(y = Estimate/applications,
+                        ymin = `2.5%ile`/applications ,
+                        ymax = `97.5%ile`/applications),
+                    color = wes_palette(&quot;Moonrise2&quot;)[1],
+                    shape = 1, alpha = 1/3) +
+    geom_point(color = wes_palette(&quot;Moonrise2&quot;)[2]) +
+    geom_line(aes(group = dept),
+              color = wes_palette(&quot;Moonrise2&quot;)[2]) +
+    geom_text(data = d_text,
+              aes(y = admit, label = dept),
+              color = wes_palette(&quot;Moonrise2&quot;)[2],
+              family = &quot;serif&quot;) +
+    coord_cartesian(ylim = 0:1) +
+    labs(y = &quot;Proportion admitted&quot;,
+         title = &quot;Posterior validation check&quot;) +
+    theme(axis.ticks.x = element_blank())</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-28-1.png" width="672" /></p>
+<div id="information-criteria-digression" class="section level4">
+<h4>Information criteria digression</h4>
+<pre class="r"><code>l_m10.6 &lt;- LOO(m10.6)</code></pre>
+<pre><code>## Warning: Found 6 observations with a pareto_k &gt; 0.7 in model &#39;m10.6&#39;. It
+## is recommended to set &#39;reloo = TRUE&#39; in order to calculate the ELPD without
+## the assumption that these observations are negligible. This will refit
+## the model 6 times to compute the ELPDs for the problematic observations
+## directly.</code></pre>
+<pre class="r"><code>l_m10.6</code></pre>
+<pre><code>## 
+## Computed from 4000 by 12 log-likelihood matrix
+## 
+##          Estimate    SE
+## elpd_loo   -483.2 158.3
+## p_loo       101.2  35.0
+## looic       966.4 316.6
+## ------
+## Monte Carlo SE of elpd_loo is NA.
+## 
+## Pareto k diagnostic values:
+##                          Count Pct.    Min. n_eff
+## (-Inf, 0.5]   (good)     4     33.3%   574       
+##  (0.5, 0.7]   (ok)       2     16.7%   378       
+##    (0.7, 1]   (bad)      2     16.7%   43        
+##    (1, Inf)   (very bad) 4     33.3%   1         
+## See help(&#39;pareto-k-diagnostic&#39;) for details.</code></pre>
+<p>The Pareto <span class="math inline">\(k\)</span> parameter can be used as a diagnostic tool. Each case in the data gets its own <span class="math inline">\(k\)</span> value and we like it when those <span class="math inline">\(k\)</span>s are low. The makers of the <code>loo</code> package get worried when those <span class="math inline">\(k\)</span>s exceed 0.7 and as a result, <code>loo()</code> spits out a warning message when they do.</p>
+<pre class="r"><code>library(loo)
+pareto_k_table(l_m10.6)</code></pre>
+<pre><code>## Pareto k diagnostic values:
+##                          Count Pct.    Min. n_eff
+## (-Inf, 0.5]   (good)     4     33.3%   574       
+##  (0.5, 0.7]   (ok)       2     16.7%   378       
+##    (0.7, 1]   (bad)      2     16.7%   43        
+##    (1, Inf)   (very bad) 4     33.3%   1</code></pre>
+<pre class="r"><code>plot(l_m10.6)</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-31-1.png" width="672" /></p>
+<pre class="r"><code>pareto_k_ids(l_m10.6, threshold = 1)</code></pre>
+<pre><code>## [1]  1  3 11 12</code></pre>
+<pre class="r"><code>l_m10.6_reloo &lt;- LOO(m10.6, reloo = T)</code></pre>
+<pre><code>## 
+## Gradient evaluation took 3.4e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.34 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## 
+##  Elapsed Time: 0.054515 seconds (Warm-up)
+##                0.077842 seconds (Sampling)
+##                0.132357 seconds (Total)
+## 
+## 
+## Gradient evaluation took 1.3e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.13 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## 
+##  Elapsed Time: 0.053537 seconds (Warm-up)
+##                0.071429 seconds (Sampling)
+##                0.124966 seconds (Total)
+## 
+## 
+## Gradient evaluation took 1.5e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.15 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## 
+##  Elapsed Time: 0.054269 seconds (Warm-up)
+##                0.063526 seconds (Sampling)
+##                0.117795 seconds (Total)
+## 
+## 
+## Gradient evaluation took 1.2e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.12 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## 
+##  Elapsed Time: 0.055782 seconds (Warm-up)
+##                0.050451 seconds (Sampling)
+##                0.106233 seconds (Total)
+## 
+## 
+## Gradient evaluation took 1.5e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.15 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## 
+##  Elapsed Time: 0.057025 seconds (Warm-up)
+##                0.06301 seconds (Sampling)
+##                0.120035 seconds (Total)
+## 
+## 
+## Gradient evaluation took 1.3e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.13 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## 
+##  Elapsed Time: 0.054462 seconds (Warm-up)
+##                0.063167 seconds (Sampling)
+##                0.117629 seconds (Total)
+## 
+## 
+## Gradient evaluation took 1.6e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.16 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## 
+##  Elapsed Time: 0.055842 seconds (Warm-up)
+##                0.058894 seconds (Sampling)
+##                0.114736 seconds (Total)
+## 
+## 
+## Gradient evaluation took 1.3e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.13 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## 
+##  Elapsed Time: 0.056581 seconds (Warm-up)
+##                0.05565 seconds (Sampling)
+##                0.112231 seconds (Total)
+## 
+## 
+## Gradient evaluation took 1.5e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.15 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## 
+##  Elapsed Time: 0.056436 seconds (Warm-up)
+##                0.061603 seconds (Sampling)
+##                0.118039 seconds (Total)
+## 
+## 
+## Gradient evaluation took 1.3e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.13 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## 
+##  Elapsed Time: 0.055733 seconds (Warm-up)
+##                0.062833 seconds (Sampling)
+##                0.118566 seconds (Total)
+## 
+## 
+## Gradient evaluation took 1.5e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.15 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## 
+##  Elapsed Time: 0.054649 seconds (Warm-up)
+##                0.054116 seconds (Sampling)
+##                0.108765 seconds (Total)
+## 
+## 
+## Gradient evaluation took 1.2e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.12 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## 
+##  Elapsed Time: 0.054765 seconds (Warm-up)
+##                0.063091 seconds (Sampling)
+##                0.117856 seconds (Total)</code></pre>
+<pre class="r"><code>l_m10.6_reloo</code></pre>
+<pre><code>## 
+## Computed from 4000 by 12 log-likelihood matrix
+## 
+##          Estimate    SE
+## elpd_loo   -516.1 171.4
+## p_loo       134.1  51.8
+## looic      1032.3 342.9
+## ------
+## Monte Carlo SE of elpd_loo is NA.
+## 
+## Pareto k diagnostic values:
+##                          Count Pct.    Min. n_eff
+## (-Inf, 0.5]   (good)     10    83.3%   1         
+##  (0.5, 0.7]   (ok)        2    16.7%   378       
+##    (0.7, 1]   (bad)       0     0.0%   &lt;NA&gt;      
+##    (1, Inf)   (very bad)  0     0.0%   &lt;NA&gt;      
+## 
+## All Pareto k estimates are ok (k &lt; 0.7).
+## See help(&#39;pareto-k-diagnostic&#39;) for details.</code></pre>
+<p>{{% alert note %}} Check this <a href="https://github.com/ASKurz/Student-s-t_regression">vignette</a> on how the loo package’s Pareto <span class="math inline">\(k\)</span> can help detect outliers. {{% /alert %}}</p>
+</div>
+</div>
+<div id="fitting-binomial-regressions-with-glm" class="section level3">
+<h3>10.1.4. Fitting binomial regressions with `glm</h3>
+<pre class="r"><code># outcome and predictor almost perfectly associated
+y &lt;- c(rep(0, 10), rep(1, 10))
+x &lt;- c(rep(-1, 9), rep(1, 11))
+
+b.good &lt;-
+    brm(data = list(y = y, x = x), family = bernoulli,
+        y ~ 1 + x,
+        prior = c(set_prior(&quot;normal(0, 10)&quot;, class = &quot;Intercept&quot;),
+                  set_prior(&quot;normal(0, 10)&quot;, class = &quot;b&quot;)))</code></pre>
+<pre><code>## 
+## SAMPLING FOR MODEL &#39;bernoulli brms-model&#39; NOW (CHAIN 1).
+## 
+## Gradient evaluation took 3.1e-05 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.31 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## Iteration:    1 / 2000 [  0%]  (Warmup)
+## Iteration:  200 / 2000 [ 10%]  (Warmup)
+## Iteration:  400 / 2000 [ 20%]  (Warmup)
+## Iteration:  600 / 2000 [ 30%]  (Warmup)
+## Iteration:  800 / 2000 [ 40%]  (Warmup)
+## Iteration: 1000 / 2000 [ 50%]  (Warmup)
+## Iteration: 1001 / 2000 [ 50%]  (Sampling)
+## Iteration: 1200 / 2000 [ 60%]  (Sampling)
+## Iteration: 1400 / 2000 [ 70%]  (Sampling)
+## Iteration: 1600 / 2000 [ 80%]  (Sampling)
+## Iteration: 1800 / 2000 [ 90%]  (Sampling)
+## Iteration: 2000 / 2000 [100%]  (Sampling)
+## 
+##  Elapsed Time: 0.058758 seconds (Warm-up)
+##                0.061854 seconds (Sampling)
+##                0.120612 seconds (Total)
+## 
+## 
+## SAMPLING FOR MODEL &#39;bernoulli brms-model&#39; NOW (CHAIN 2).
+## 
+## Gradient evaluation took 8e-06 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.08 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## Iteration:    1 / 2000 [  0%]  (Warmup)
+## Iteration:  200 / 2000 [ 10%]  (Warmup)
+## Iteration:  400 / 2000 [ 20%]  (Warmup)
+## Iteration:  600 / 2000 [ 30%]  (Warmup)
+## Iteration:  800 / 2000 [ 40%]  (Warmup)
+## Iteration: 1000 / 2000 [ 50%]  (Warmup)
+## Iteration: 1001 / 2000 [ 50%]  (Sampling)
+## Iteration: 1200 / 2000 [ 60%]  (Sampling)
+## Iteration: 1400 / 2000 [ 70%]  (Sampling)
+## Iteration: 1600 / 2000 [ 80%]  (Sampling)
+## Iteration: 1800 / 2000 [ 90%]  (Sampling)
+## Iteration: 2000 / 2000 [100%]  (Sampling)
+## 
+##  Elapsed Time: 0.056059 seconds (Warm-up)
+##                0.060835 seconds (Sampling)
+##                0.116894 seconds (Total)
+## 
+## 
+## SAMPLING FOR MODEL &#39;bernoulli brms-model&#39; NOW (CHAIN 3).
+## 
+## Gradient evaluation took 9e-06 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.09 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## Iteration:    1 / 2000 [  0%]  (Warmup)
+## Iteration:  200 / 2000 [ 10%]  (Warmup)
+## Iteration:  400 / 2000 [ 20%]  (Warmup)
+## Iteration:  600 / 2000 [ 30%]  (Warmup)
+## Iteration:  800 / 2000 [ 40%]  (Warmup)
+## Iteration: 1000 / 2000 [ 50%]  (Warmup)
+## Iteration: 1001 / 2000 [ 50%]  (Sampling)
+## Iteration: 1200 / 2000 [ 60%]  (Sampling)
+## Iteration: 1400 / 2000 [ 70%]  (Sampling)
+## Iteration: 1600 / 2000 [ 80%]  (Sampling)
+## Iteration: 1800 / 2000 [ 90%]  (Sampling)
+## Iteration: 2000 / 2000 [100%]  (Sampling)
+## 
+##  Elapsed Time: 0.055012 seconds (Warm-up)
+##                0.04879 seconds (Sampling)
+##                0.103802 seconds (Total)
+## 
+## 
+## SAMPLING FOR MODEL &#39;bernoulli brms-model&#39; NOW (CHAIN 4).
+## 
+## Gradient evaluation took 9e-06 seconds
+## 1000 transitions using 10 leapfrog steps per transition would take 0.09 seconds.
+## Adjust your expectations accordingly!
+## 
+## 
+## Iteration:    1 / 2000 [  0%]  (Warmup)
+## Iteration:  200 / 2000 [ 10%]  (Warmup)
+## Iteration:  400 / 2000 [ 20%]  (Warmup)
+## Iteration:  600 / 2000 [ 30%]  (Warmup)
+## Iteration:  800 / 2000 [ 40%]  (Warmup)
+## Iteration: 1000 / 2000 [ 50%]  (Warmup)
+## Iteration: 1001 / 2000 [ 50%]  (Sampling)
+## Iteration: 1200 / 2000 [ 60%]  (Sampling)
+## Iteration: 1400 / 2000 [ 70%]  (Sampling)
+## Iteration: 1600 / 2000 [ 80%]  (Sampling)
+## Iteration: 1800 / 2000 [ 90%]  (Sampling)
+## Iteration: 2000 / 2000 [100%]  (Sampling)
+## 
+##  Elapsed Time: 0.058365 seconds (Warm-up)
+##                0.055513 seconds (Sampling)
+##                0.113878 seconds (Total)</code></pre>
+<pre class="r"><code>pairs(b.good,
+      off_diag_args = list(size = 1/10, alpha = 1/6))</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-35-1.png" width="672" /></p>
+</div>
+</div>
+<div id="poisson-regression" class="section level2">
+<h2>10.2. Poisson regression</h2>
+<blockquote>
+<p>It is a GLM that models a count outcome without a known maximum. The Poisson model can also be conceived of as a binomial model with a very large maximum but a very small probability per trial.</p>
+</blockquote>
+<blockquote>
+<p>A Poisson distribution is useful because it allows us to model binomial events for which the number of trials <span class="math inline">\(n\)</span> is unknown or uncountably large.</p>
+</blockquote>
+<p><span class="math display">\[y \sim \text{Poisson} \left( \lambda \right)\]</span></p>
+<p>where <span class="math inline">\(\lambda\)</span> is the expected value of the outcome <span class="math inline">\(y\)</span>.</p>
+<p>To build a GLM with this likelihood, the conventional link function for a Poisson model is the log link, i.e.</p>
+<p><span class="math display">\[\begin{eqnarray} { y }_{ i } &amp; \sim  &amp; \text{Poisson}\left( \lambda_i \right) \\ \log \left( { \lambda }_{ i } \right) &amp; = &amp; \alpha + \beta x_i \end{eqnarray}\]</span></p>
+<p>{{% alert warning %}} Exponential relationships grow very quickly, and few natural phenomena can remain exponential for long. So one thing to always check with a log link is whether it makes sense at all ranges of the predictor variables. {{% /alert %}}</p>
+<blockquote>
+<p>The parameter <span class="math inline">\(\lambda\)</span> is the expected value, but it’s also commonly thought of as a <em>rate</em>. Both interpretations are correct, and realizing this allows us to make Poisson models for which the <em>exposure</em> varies across cases <span class="math inline">\(i\)</span>.</p>
+</blockquote>
+<blockquote>
+<p>Implicitly, <span class="math inline">\(\lambda\)</span> is equal to an expected number of events, <span class="math inline">\(\mu\)</span>, per unit time or distance, <span class="math inline">\(\tau\)</span>. This implies that <span class="math inline">\(\lambda = \mu / \tau\)</span>, which lets us redefine the link:</p>
+</blockquote>
+<p><span class="math display">\[\begin{eqnarray} { y }_{ i } &amp; \sim  &amp; \text{Poisson}\left( \lambda_i \right) \\ \log  { \lambda }_{ i } &amp; = &amp; \log { \frac { { \mu  }_{ i } }{ { \tau  }_{ i } }  } =\log { { \mu  }_{ i } } -\log { { \tau  }_{ i } } = \alpha + \beta x_i \end{eqnarray}\]</span></p>
+<blockquote>
+<p>The <span class="math inline">\(\tau\)</span> values are the exposures. When the exposure varies across cases, then <span class="math inline">\(\tau_i\)</span> does the important work of correctly scaling the expected number of events for each case <span class="math inline">\(i\)</span>. So you can model cases with different exposures just by adding a predictor, the logarithm of the exposure, without adding a parameter for it.</p>
+</blockquote>
+<p><span class="math display">\[\begin{eqnarray} { y }_{ i } &amp; \sim  &amp; \text{Poisson}\left( \mu_i \right) \\ \log  { \mu }_{ i } &amp; = &amp; \log { { \tau  }_{ i } } + \alpha + \beta x_i \end{eqnarray}\]</span></p>
+<div id="example-oceanic-tool-complexity" class="section level3">
+<h3>10.2.1. Example: Oceanic tool complexity</h3>
+<pre class="r"><code>library(rethinking)
+data(Kline)
+d &lt;- Kline
+detach(package:rethinking)
+library(brms)
+rm(Kline)
+
+d &lt;-
+  d %&gt;%
+  mutate(log_pop = log(population),
+         contact_high = ifelse(contact == &quot;high&quot;, 1, 0))
+
+d</code></pre>
+<pre><code>##       culture population contact total_tools mean_TU   log_pop
+## 1    Malekula       1100     low          13     3.2  7.003065
+## 2     Tikopia       1500     low          22     4.7  7.313220
+## 3  Santa Cruz       3600     low          24     4.0  8.188689
+## 4         Yap       4791    high          43     5.0  8.474494
+## 5    Lau Fiji       7400    high          33     5.0  8.909235
+## 6   Trobriand       8000    high          19     4.0  8.987197
+## 7       Chuuk       9200    high          40     3.8  9.126959
+## 8       Manus      13000     low          28     6.6  9.472705
+## 9       Tonga      17500    high          55     5.4  9.769956
+## 10     Hawaii     275000     low          71     6.6 12.524526
+##    contact_high
+## 1             0
+## 2             0
+## 3             0
+## 4             1
+## 5             1
+## 6             1
+## 7             1
+## 8             0
+## 9             1
+## 10            0</code></pre>
+<p>The model to consider is:</p>
+<p><span class="math display">\[\begin{eqnarray} { T }_{ i } &amp; \sim  &amp; \text{Poisson}\left( \lambda_i \right) \\ \log \left( { \lambda }_{ i } \right) &amp; = &amp; \alpha + { \beta  }_{ P } \log P_i + { \beta  }_{ C } C_i + { \beta  }_{ PC } C_i \log P_i \\ \alpha  &amp; \sim  &amp; \text{Normal}(0,100) \\ { \beta  }_{ P } &amp; \sim  &amp; \text{Normal}(0,1) \\ { \beta  }_{ C } &amp; \sim  &amp; \text{Normal}(0,1) \\ { \beta  }_{ PC }  &amp; \sim  &amp; \text{Normal}(0,1) \end{eqnarray}\]</span></p>
+<blockquote>
+<p>Strongly regularizing priors are used because the sample is small, so we should fear overfitting more. And since the predictors are not centered, there’s no telling where <span class="math inline">\(\alpha\)</span> should end up, so an essentially flat prior is assigned to it.</p>
+</blockquote>
+<pre class="r"><code>m10.10 &lt;- brm(data = d, family = poisson,
+              total_tools ~ 1 + log_pop + contact_high + contact_high:log_pop,
+              prior = c(set_prior(&quot;normal(0, 100)&quot;, class = &quot;Intercept&quot;),
+                        set_prior(&quot;normal(0, 1)&quot;, class = &quot;b&quot;)),
+              iter = 3000, warmup = 1000, chains = 4, cores = 4)
+
+print(m10.10)</code></pre>
+<pre><code>##  Family: poisson 
+##   Links: mu = log 
+## Formula: total_tools ~ 1 + log_pop + contact_high + contact_high:log_pop 
+##    Data: d (Number of observations: 10) 
+## Samples: 4 chains, each with iter = 3000; warmup = 1000; thin = 1; 
+##          total post-warmup samples = 8000
+##     ICs: LOO = NA; WAIC = NA; R2 = NA
+##  
+## Population-Level Effects: 
+##                      Estimate Est.Error l-95% CI u-95% CI Eff.Sample Rhat
+## Intercept                0.94      0.36     0.21     1.62       4036 1.00
+## log_pop                  0.26      0.04     0.20     0.33       4253 1.00
+## contact_high            -0.10      0.84    -1.75     1.55       3277 1.00
+## log_pop:contact_high     0.04      0.09    -0.14     0.22       3303 1.00
+## 
+## Samples were drawn using sampling(NUTS). For each parameter, Eff.Sample 
+## is a crude measure of effective sample size, and Rhat is the potential 
+## scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
+<pre class="r"><code>post &lt;-
+    posterior_samples(m10.10)
+
+post %&gt;%
+    select(-lp__) %&gt;%
+    rename(b_interaction = `b_log_pop:contact_high`) %&gt;%
+    cor() %&gt;% 
+    round(digits = 2)</code></pre>
+<pre><code>##                b_Intercept b_log_pop b_contact_high b_interaction
+## b_Intercept           1.00     -0.98          -0.12          0.06
+## b_log_pop            -0.98      1.00           0.12         -0.08
+## b_contact_high       -0.12      0.12           1.00         -0.99
+## b_interaction         0.06     -0.08          -0.99          1.00</code></pre>
+<pre class="r"><code># We&#39;ll set a renewed color theme
+color_scheme_set(c(wes_palette(&quot;Moonrise2&quot;)[2],
+                   wes_palette(&quot;Moonrise2&quot;)[1], 
+                   wes_palette(&quot;Moonrise2&quot;)[4], 
+                   wes_palette(&quot;Moonrise2&quot;)[2], 
+                   wes_palette(&quot;Moonrise2&quot;)[1], 
+                   wes_palette(&quot;Moonrise2&quot;)[1]))
+
+post %&gt;%
+    select(-lp__) %&gt;% 
+    rename(b_interaction = `b_log_pop:contact_high`) %&gt;%
+    mcmc_intervals(prob = .5, prob_outer = .95) +
+    theme(axis.ticks.y = element_blank(),
+          axis.text.y = element_text(hjust = 0))</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-39-1.png" width="672" /></p>
+<p>Check if contact rate has no impact on prediction in this model:</p>
+<pre class="r"><code>post &lt;-
+    post %&gt;%
+    mutate(lambda_high = exp(b_Intercept + b_contact_high + (b_log_pop + `b_log_pop:contact_high`)*8),
+           lambda_low = exp(b_Intercept + b_log_pop*8),
+           diff = lambda_high - lambda_low) 
+
+post %&gt;%
+    summarise(sum = sum(diff &gt; 0)/length(diff))</code></pre>
+<pre><code>##        sum
+## 1 0.959625</code></pre>
+<pre class="r"><code>post %&gt;%
+    ggplot(aes(x = diff)) +
+    geom_density(color = &quot;transparent&quot;,
+                 fill = wes_palette(&quot;Moonrise2&quot;)[1]) +
+    geom_vline(xintercept = 0, linetype = 2,
+               color = wes_palette(&quot;Moonrise2&quot;)[2]) +
+    scale_y_continuous(NULL, breaks = NULL) +
+    labs(x = &quot;lambda_high - lambda_low&quot;)</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-41-1.png" width="672" /></p>
+<pre class="r"><code># Intermediary tibbles for our the dot and line portoin of the plot
+point_tibble &lt;-
+    tibble(x = c(median(post$b_contact_high), min(post$b_contact_high)),
+           y = c(min(post$`b_log_pop:contact_high`), median(post$`b_log_pop:contact_high`)))
+
+line_tibble &lt;-
+    tibble(parameter = rep(c(&quot;b_contact_high&quot;, &quot;b_log_pop:contact_high&quot;), each = 2),
+           x = c(quantile(post$b_contact_high, probs = c(.025, .975)),
+                 rep(min(post$b_contact_high), times = 2)),
+           y = c(rep(min(post$`b_log_pop:contact_high`), times = 2),
+                 quantile(post$`b_log_pop:contact_high`, probs = c(.025, .975))))
+
+# the plot
+post %&gt;% 
+    ggplot(aes(x = b_contact_high, y = `b_log_pop:contact_high`)) +
+    geom_point(color = wes_palette(&quot;Moonrise2&quot;)[1],
+               size = 1/10, alpha = 1/10) +
+    geom_point(data = point_tibble,
+               aes(x = x, y = y)) +
+    geom_line(data = line_tibble,
+              aes(x = x, y = y, group = parameter)) + 
+    labs(subtitle = &quot;Neither parameter is conventionally “significant,” but together they imply\nthat contact rate consistently influences prediction.&quot;)</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-42-1.png" width="672" /></p>
+<blockquote>
+<p>How can contact rate be significant when both <code>b_contact_high</code> and <code>b_interaction</code> are, conventionally speaking, non-significant? One reason is because the uncertainty in the parameters is correlated.</p>
+</blockquote>
+<p>{{% alert warning %}} You can’t just inspect the marginal uncertainty in each parameter from the table of estimates, and get an accurate understanding of the impact of the joint uncertainty on prediction. {{% /alert %}}</p>
+<pre class="r"><code># no interaction
+m10.11 &lt;- 
+    update(m10.10, formula = total_tools ~ 1 + log_pop + contact_high,
+           iter = 3000, warmup = 1000, chains = 4, cores = 4)
+
+# no contact rate
+m10.12 &lt;-
+    update(m10.10, formula = total_tools ~ 1 + log_pop,
+           iter = 3000, warmup = 1000, chains = 4, cores = 4)
+
+# no log-population
+m10.13 &lt;-
+    update(m10.10, formula = total_tools ~ 1 + contact_high,
+           iter = 3000, warmup = 1000, chains = 4, cores = 4)
+
+# intercept only
+m10.14 &lt;-
+    update(m10.10, formula = total_tools ~ 1,
+           iter = 3000, warmup = 1000, chains = 4, cores = 4)</code></pre>
+<pre class="r"><code>w_m10.10 &lt;- waic(m10.10)
+w_m10.11 &lt;- waic(m10.11)
+w_m10.12 &lt;- waic(m10.12)
+w_m10.13 &lt;- waic(m10.13)
+w_m10.14 &lt;- waic(m10.14)
+ 
+compare_ic(w_m10.10, w_m10.11, w_m10.12, w_m10.13, w_m10.14)</code></pre>
+<pre><code>##                   WAIC    SE
+## m10.10           80.16 11.83
+## m10.11           79.20 11.68
+## m10.12           84.56  9.43
+## m10.13          150.70 47.42
+## m10.14          141.53 33.51
+## m10.10 - m10.11   0.96  1.31
+## m10.10 - m10.12  -4.40  7.96
+## m10.10 - m10.13 -70.55 47.33
+## m10.10 - m10.14 -61.37 34.87
+## m10.11 - m10.12  -5.36  8.38
+## m10.11 - m10.13 -71.51 47.13
+## m10.11 - m10.14 -62.33 34.65
+## m10.12 - m10.13 -66.15 47.13
+## m10.12 - m10.14 -56.97 33.35
+## m10.13 - m10.14   9.17 17.07</code></pre>
+<pre class="r"><code>tibble(model = c(&quot;m10.10&quot;, &quot;m10.11&quot;, &quot;m10.12&quot;, &quot;m10.13&quot;, &quot;m10.14&quot;),
+       waic  = c(w_m10.10$estimates[3, 1], w_m10.11$estimates[3, 1], w_m10.12$estimates[3, 1], w_m10.13$estimates[3, 1], w_m10.14$estimates[3, 1]),
+       se    = c(w_m10.10$estimates[3, 2], w_m10.11$estimates[3, 2], w_m10.12$estimates[3, 2], w_m10.13$estimates[3, 2], w_m10.14$estimates[3, 2])) %&gt;%
+    ggplot() +
+    geom_pointrange(aes(x = reorder(model, -waic), y = waic,
+                        ymin = waic - se,
+                        ymax = waic + se,
+                        color = model),
+                    shape = 16) +
+    scale_color_manual(values = wes_palette(&quot;Moonrise2&quot;)[c(1, 2, 1, 1, 1)]) +
+    coord_flip() +
+    labs(x = NULL, y = NULL,
+         title = &quot;WAIC&quot;) +
+    theme(axis.ticks.y = element_blank(),
+          legend.position = &quot;none&quot;)</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-45-1.png" width="672" /></p>
+<pre class="r"><code>nd &lt;-
+    tibble(log_pop = rep(seq(from = 6.5, 
+                             to = 13, 
+                             length.out = 50),
+                         times = 2),
+           contact_high = rep(0:1, each = 50))
+
+ppa_10.9 &lt;- 
+    pp_average(m10.10, m10.11, m10.12,
+               weights = &quot;loo&quot;,
+               method = &quot;fitted&quot;,
+               newdata = nd) %&gt;%
+    as_tibble() %&gt;%
+    bind_cols(nd)
+
+ppa_10.9 %&gt;%
+    ggplot(aes(x = log_pop,
+               group = contact_high)) +
+    geom_ribbon(aes(ymin = `2.5%ile`,
+                    ymax = `97.5%ile`,
+                    fill = contact_high),
+                alpha = 1/4) +
+    geom_line(aes(y = Estimate, color = contact_high)) +
+    geom_text(data = d, 
+              aes(y = total_tools,
+                  label = total_tools,
+                  color = contact_high),
+              size = 3.5) +
+    coord_cartesian(xlim = c(7.1, 12.4),
+                    ylim = c(12, 70)) +
+    labs(x = &quot;log population&quot;,
+         y = &quot;total tools&quot;,
+         subtitle = &quot;Blue is the high contact rate and black is the low. Notice that both trends curve\n dramatically upwards as log-population increases. The impact of contact rate can be seen by the distance\n between the blue and gray predictions. There is plenty of overlap, especially at low and high\n log-population values, where there are no islands with high contact rate.&quot;) +
+    theme(legend.position = &quot;none&quot;,
+          panel.border = element_blank())</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-46-1.png" width="672" /></p>
+</div>
+<div id="mcmc-islands" class="section level3">
+<h3>10.2.2. MCMC islands</h3>
+<pre class="r"><code>d &lt;-
+    d %&gt;%
+    mutate(log_pop_c = log_pop - mean(log_pop))
+
+m10.10.c &lt;-
+    brm(data = d, family = poisson,
+        total_tools ~ 1 + log_pop_c + contact_high + contact_high:log_pop_c,
+        prior = c(set_prior(&quot;normal(0, 10)&quot;, class = &quot;Intercept&quot;),
+                  set_prior(&quot;normal(0, 10)&quot;, class = &quot;b&quot;)),
+        iter = 3000, warmup = 1000, chains = 4, cores = 4)</code></pre>
+<pre class="r"><code># this helps us set our custom color scheme
+color_scheme_set(c(wes_palette(&quot;Moonrise2&quot;)[3], 
+                   wes_palette(&quot;Moonrise2&quot;)[1], 
+                   wes_palette(&quot;Moonrise2&quot;)[2], 
+                   wes_palette(&quot;Moonrise2&quot;)[2], 
+                   wes_palette(&quot;Moonrise2&quot;)[1], 
+                   wes_palette(&quot;Moonrise2&quot;)[1]))
+
+# the actual plot
+mcmc_pairs(x = posterior_samples(m10.10),
+           pars = c(&quot;b_Intercept&quot;, &quot;b_log_pop&quot;, &quot;b_contact_high&quot;, &quot;b_log_pop:contact_high&quot;),
+           off_diag_args = list(size = 1/10, alpha = 1/10),
+           diag_fun = &quot;dens&quot;)</code></pre>
+<pre><code>## Warning in mcmc_pairs(x = posterior_samples(m10.10), pars =
+## c(&quot;b_Intercept&quot;, : Only one chain in &#39;x&#39;. This plot is more useful with
+## multiple chains.</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-48-1.png" width="672" /></p>
+<pre class="r"><code>mcmc_pairs(x = posterior_samples(m10.10.c),
+           pars = c(&quot;b_Intercept&quot;, &quot;b_log_pop_c&quot;, &quot;b_contact_high&quot;, &quot;b_log_pop_c:contact_high&quot;),
+           off_diag_args = list(size = 1/10, alpha = 1/10),
+           diag_fun = &quot;dens&quot;)</code></pre>
+<pre><code>## Warning in mcmc_pairs(x = posterior_samples(m10.10.c), pars =
+## c(&quot;b_Intercept&quot;, : Only one chain in &#39;x&#39;. This plot is more useful with
+## multiple chains.</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-49-1.png" width="672" /></p>
+<p>{{% alert note %}} Hamiltonian Monte Carlo is very good at handling strong correlations in the posterior distribution, but it is going to be less efficient.</p>
+<p>When strong correlations are gone, the Markov chain results in a greater number of <strong>effective samples</strong>. {{% /alert %}}</p>
+<p>{{% alert note %}} Check the <a href="https://cran.r-project.org/web/packages/psych/vignettes/intro.pdf">psych</a> package for correlation matrices. {{% /alert %}}</p>
+</div>
+<div id="example-exposure-and-the-offset" class="section level3">
+<h3>10.2.3. Example: Exposure and the offset</h3>
+<pre class="r"><code>set.seed(3838) # making it reproducible 
+
+num_days &lt;- 30
+y &lt;- rpois(num_days, 1.5)
+
+set.seed(3838) # making it reproducible 
+
+num_weeks &lt;- 4
+y_new &lt;- rpois(num_weeks, 0.5*7)
+
+d &lt;- 
+  tibble(y = c(y, y_new), 
+         days = c(rep(1, 30), rep(7, 4)),
+         monastery = c(rep(0, 30), rep(1, 4)))
+
+d</code></pre>
+<pre><code>## # A tibble: 34 x 3
+##        y  days monastery
+##    &lt;int&gt; &lt;dbl&gt;     &lt;dbl&gt;
+##  1     1    1.        0.
+##  2     2    1.        0.
+##  3     1    1.        0.
+##  4     1    1.        0.
+##  5     1    1.        0.
+##  6     2    1.        0.
+##  7     0    1.        0.
+##  8     1    1.        0.
+##  9     1    1.        0.
+## 10     0    1.        0.
+## # ... with 24 more rows</code></pre>
+<pre class="r"><code>d &lt;-
+    d %&gt;%
+    mutate(log_days = log(days))
+
+m10.15 &lt;-
+    brm(data = d, family = poisson,
+        y ~ 1 + offset(log_days) + monastery,
+        prior = c(set_prior(&quot;normal(0, 100)&quot;, class = &quot;Intercept&quot;),
+                  set_prior(&quot;normal(0, 1)&quot;, class = &quot;b&quot;)),
+        iter = 2500, warmup = 500, cores = 2, chains = 2)</code></pre>
+<p>{{% alert warning %}} We don’t use the offset again, when computing predictions, because the parameters are already on the same time scale. {{% /alert %}}</p>
+<pre class="r"><code>posterior_samples(m10.15) %&gt;%
+    mutate(lambda_old = exp(b_Intercept),
+           lambda_new  = exp(b_Intercept + b_monastery)) %&gt;%
+    gather(key, value, -(b_Intercept:lp__)) %&gt;%
+    mutate(key = factor(key, levels = c(&quot;lambda_old&quot;, &quot;lambda_new&quot;))) %&gt;%
+    group_by(key) %&gt;%
+    summarise(Mean = mean(value) %&gt;% round(digits = 2),
+              StdDev = sd(value) %&gt;% round(digits = 2),
+              LL = quantile(value, probs = .025) %&gt;% round(digits = 2),
+              UL = quantile(value, probs = .975) %&gt;% round(digits = 2)) </code></pre>
+<pre><code>## # A tibble: 2 x 5
+##   key         Mean StdDev    LL    UL
+##   &lt;fct&gt;      &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
+## 1 lambda_old 1.19   0.190 0.840 1.59 
+## 2 lambda_new 0.460  0.120 0.260 0.730</code></pre>
+</div>
+</div>
+<div id="other-count-regressions" class="section level2">
+<h2>10.3. Other count regressions</h2>
+<div id="multinomial" class="section level3">
+<h3>10.3.1. Multinomial</h3>
+<p>{{% alert note %}} When more than two types of unordered events are possible, and the probability of each type of event is constant across trials, then the maximum entropy distribution is the multinomial distribution. {{% /alert %}}</p>
+<p><span class="math display">\[\Pr\left( { { y }_{ 1 }\dots, { y }_{ K } }|{ n,{ { p }_{ 1 }\dots, { p }_{ K } } } \right) =\frac { n! }{ \prod _{ i }{ { y }_{ i }! }  } \prod _{ i=1 }^{ K }{ { p }_{ i }^{ { y }_{ i } } } \]</span></p>
+<blockquote>
+<p>A model built on a multinomial distribution may also be called a categorical regression, usually when each event is isolated on a single row, like with logistic regression. In machine learning, this model type is sometimes known as the <strong>maximum entropy classifier</strong>.</p>
+</blockquote>
+<div id="explicit-multinomial-models" class="section level4">
+<h4>10.3.1.1. Explicit multinomial models</h4>
+<p>This approach uses the multinomial likelihood and a generalization of the logit link (the multinomial logit).</p>
+<p>The multinomial logit is a link function takes a vector of scores, one for each of K event types, and computes the probability of a particular type of event k as:</p>
+<p><span class="math display">\[\Pr\left( { k }|{ { { s }_{ 1 }\dots { s }_{ K } } } \right) =\frac { exp\left( { s }_{ k } \right)  }{ \sum _{ i=1 }^{ K }{ exp\left( { s }_{ i } \right)  }  } \]</span></p>
+<blockquote>
+<p>Combined with this conventional link, this type of GLM is often called multinomial logistic regression.</p>
+</blockquote>
+<blockquote>
+<p>In a binomial GLM, you can pick either of the two possible events and build a single linear model for its log odds. The other event is handled automatically. But in a multinomial (or categorical) GLM, you need <span class="math inline">\(K-1\)</span> linear models for <span class="math inline">\(K\)</span> types of events. In each of these, you can use any predictors and parameters you like (they don’t have to be the same, and there are often good reasons for them to be different). In the special case of two types of events, none of these choices arise, because there is only one linear model.</p>
+</blockquote>
+<blockquote>
+<p>There are two basic cases: (1) predictors have different values for different types of events, and (2) parameters are distinct for each type of event. The first case is useful when each type of event has its own quantitative traits, and you want to estimate the association between those traits and the probability each type of event appears in the data. The second case is useful when you are interested instead in features of some entity that produces each event, whatever type it turns out to be.</p>
+</blockquote>
+<pre class="r"><code>detach(package:brms)
+library(rethinking)</code></pre>
+<pre><code>## rethinking (Version 1.59)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;rethinking&#39;</code></pre>
+<pre><code>## The following object is masked from &#39;package:loo&#39;:
+## 
+##     compare</code></pre>
+<pre><code>## The following object is masked from &#39;package:purrr&#39;:
+## 
+##     map</code></pre>
+<pre class="r"><code># simulate career choices among 500 individuals
+N &lt;- 500             # number of individuals
+income &lt;- 1:3        # expected income of each career
+score &lt;- 0.5*income  # scores for each career, based on income
+
+# next line converts scores to probabilities
+p &lt;- softmax(score[1], score[2], score[3])
+
+# now simulate choice
+# outcome career holds event type values, not counts
+career &lt;- rep(NA, N)  # empty vector of choices for each individual
+
+set.seed(2078)
+# sample chosen career for each individual
+for(i in 1:N) career[i] &lt;- sample(1:3, size = 1, prob = p)
+
+career %&gt;%
+    as_tibble() %&gt;%
+    ggplot(aes(x = value %&gt;% as.factor())) +
+    geom_bar(size = 0, fill = wes_palette(&quot;Moonrise2&quot;)[2])</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-52-1.png" width="672" /></p>
+<pre class="r"><code>detach(package:rethinking)
+library(brms)
+
+m10.16 &lt;-
+    brm(data = list(career = career), 
+        family = categorical(link = &quot;logit&quot;),
+        career ~ 1,
+        prior = c(set_prior(&quot;normal(0, 5)&quot;, class = &quot;Intercept&quot;)),
+        iter = 2500, warmup = 500, cores = 2, chains = 2)
+
+print(m10.16)</code></pre>
+<pre><code>##  Family: categorical 
+##   Links: mu2 = logit; mu3 = logit 
+## Formula: career ~ 1 
+##    Data: list(career = career) (Number of observations: 500) 
+## Samples: 2 chains, each with iter = 2500; warmup = 500; thin = 1; 
+##          total post-warmup samples = 4000
+##     ICs: LOO = NA; WAIC = NA; R2 = NA
+##  
+## Population-Level Effects: 
+##               Estimate Est.Error l-95% CI u-95% CI Eff.Sample Rhat
+## mu2_Intercept     0.29      0.13     0.04     0.55       1374 1.00
+## mu3_Intercept     0.96      0.12     0.73     1.20       1403 1.00
+## 
+## Samples were drawn using sampling(NUTS). For each parameter, Eff.Sample 
+## is a crude measure of effective sample size, and Rhat is the potential 
+## scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
+<p>{{% alert warning %}} Be aware that the estimates you get from these models are extraordinarily difficult to interpret. You absolutely must convert them to a vector of probabilities, to make much sense of them. The principle reason is that the estimates swing around wildly, depending upon which event type you assign a constant score. {{% /alert %}}</p>
+<p>{{% alert note %}} Have a look at this blog post for an understanding of <a href="https://thinkinator.com/2016/01/12/r-users-will-now-inevitably-become-bayesians/">multinomial logistic regression</a> models. {{% /alert %}}</p>
+<pre class="r"><code>library(rethinking)
+
+N &lt;- 100
+
+set.seed(2078)
+# simulate family incomes for each individual
+family_income &lt;- runif(N)
+
+# assign a unique coefficient for each type of event
+b &lt;- (1:-1)
+career &lt;- rep(NA, N)  # empty vector of choices for each individual
+
+for (i in 1:N) {
+    score &lt;- 0.5*(1:3) + b*family_income[i]
+    p &lt;- softmax(score[1], score[2], score[3])
+    career[i] &lt;- sample(1:3, size = 1, prob = p)
+}</code></pre>
+<pre class="r"><code>detach(package:rethinking)
+library(brms)
+
+m10.17 &lt;-
+    brm(data = list(career = career,
+                    family_income = family_income), 
+        family = categorical(link = &quot;logit&quot;),
+        career ~ 1 + family_income,
+        prior = c(set_prior(&quot;normal(0, 5)&quot;, class = &quot;Intercept&quot;),
+                  set_prior(&quot;normal(0, 5)&quot;, class = &quot;b&quot;)),
+        iter = 2500, warmup = 500, cores = 2, chains = 2)
+
+print(m10.17)</code></pre>
+<pre><code>##  Family: categorical 
+##   Links: mu2 = logit; mu3 = logit 
+## Formula: career ~ 1 + family_income 
+##    Data: list(career = career, family_income = family_incom (Number of observations: 100) 
+## Samples: 2 chains, each with iter = 2500; warmup = 500; thin = 1; 
+##          total post-warmup samples = 4000
+##     ICs: LOO = NA; WAIC = NA; R2 = NA
+##  
+## Population-Level Effects: 
+##                   Estimate Est.Error l-95% CI u-95% CI Eff.Sample Rhat
+## mu2_Intercept         1.86      0.58     0.76     3.04       2281 1.00
+## mu3_Intercept         1.54      0.57     0.48     2.73       2265 1.00
+## mu2_family_income    -3.96      1.05    -6.16    -2.02       2762 1.00
+## mu3_family_income    -2.55      0.94    -4.49    -0.81       2745 1.00
+## 
+## Samples were drawn using sampling(NUTS). For each parameter, Eff.Sample 
+## is a crude measure of effective sample size, and Rhat is the potential 
+## scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
+</div>
+<div id="multinomial-in-disguise-as-poisson" class="section level4">
+<h4>10.3.1.2. Multinomial in disguise as Poisson</h4>
+<blockquote>
+<p>Another way to fit a multinomial likelihood is to refactor it into a series of Poisson likelihoods</p>
+</blockquote>
+<pre class="r"><code>library(rethinking)
+
+data(UCBadmit)
+d &lt;- UCBadmit
+rm(UCBadmit)
+
+detach(package:rethinking)
+library(brms)</code></pre>
+<pre><code>## Warning: package &#39;brms&#39; was built under R version 3.4.4</code></pre>
+<pre class="r"><code># binomial model of overall admission probability
+m_binom &lt;-
+    brm(data = d, family = binomial,
+        admit | trials(applications) ~ 1,
+        prior = c(set_prior(&quot;normal(0, 100)&quot;, class = &quot;Intercept&quot;)),
+        iter = 2000, warmup = 1000, cores = 3, chains = 3)
+
+# Poisson model of overall admission rate and rejection rate
+d &lt;-
+    d %&gt;%
+    mutate(rej = reject) # &#39;reject&#39; is a reserved word
+
+m_pois &lt;-
+    brm(data = d, family = poisson,
+        cbind(admit, rej) ~ 1,
+        prior = c(set_prior(&quot;normal(0, 100)&quot;, class = &quot;Intercept&quot;)),
+        iter = 2000, warmup = 1000, cores = 3, chains = 3)
+
+print(m_pois)</code></pre>
+<pre><code>##  Family: MV(poisson, poisson) 
+##   Links: mu = log
+##          mu = log 
+## Formula: admit ~ 1 
+##          rej ~ 1 
+##    Data: d (Number of observations: 12) 
+## Samples: 3 chains, each with iter = 2000; warmup = 1000; thin = 1; 
+##          total post-warmup samples = 3000
+##     ICs: LOO = NA; WAIC = NA; R2 = NA
+##  
+## Population-Level Effects: 
+##                 Estimate Est.Error l-95% CI u-95% CI Eff.Sample Rhat
+## admit_Intercept     4.99      0.02     4.94     5.03       2205 1.00
+## rej_Intercept       5.44      0.02     5.41     5.48       2084 1.00
+## 
+## Samples were drawn using sampling(NUTS). For each parameter, Eff.Sample 
+## is a crude measure of effective sample size, and Rhat is the potential 
+## scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
+<pre class="r"><code>posterior_samples(m_pois) %&gt;%
+    ggplot(aes(x = exp(b_admit_Intercept))) +
+    geom_density(fill = wes_palette(&quot;Moonrise2&quot;)[2], size = 0) +
+    geom_vline(xintercept = mean(d$admit), color = wes_palette(&quot;Moonrise2&quot;)[1]) +
+    scale_y_continuous(NULL, breaks = NULL) +
+    labs(x = &quot;# applications&quot;,
+         title = &quot;Mean acceptance # across departments:&quot;,
+         subtitle = &quot;The density is the posterior distribution. The line is the\nvalue in the data.&quot;)</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-58-1.png" width="672" /></p>
+<pre class="r"><code>posterior_samples(m_pois) %&gt;%
+    ggplot(aes(x = exp(b_rej_Intercept))) +
+    geom_density(fill = wes_palette(&quot;Moonrise2&quot;)[1], size = 0) +
+    geom_vline(xintercept = mean(d$rej), color = wes_palette(&quot;Moonrise2&quot;)[2]) +
+    scale_y_continuous(NULL, breaks = NULL) +
+    labs(x = &quot;# applications&quot;,
+         title = &quot;Mean rejection # across departments:&quot;,
+         subtitle = &quot;The density is the posterior distribution. The line is the\nvalue in the data.&quot;)</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-59-1.png" width="672" /></p>
+<pre class="r"><code>fixef(m_binom) %&gt;%
+  invlogit()</code></pre>
+<pre><code>##            Estimate Est.Error   2.5%ile  97.5%ile
+## Intercept 0.3876835 0.5076754 0.3732773 0.4020179</code></pre>
+<pre class="r"><code>k &lt;- 
+    fixef(m_pois) %&gt;%
+    as.numeric()
+
+exp(k[1])/(exp(k[1]) + exp(k[2]))</code></pre>
+<pre><code>## [1] 0.3880054</code></pre>
+<p>{{% alert note %}} Have a look at <a href="https://cran.r-project.org/web/packages/brms/vignettes/brms_multivariate.html">Estimating Multivariate Models with brms</a>. {{% /alert %}}</p>
+</div>
+</div>
+<div id="geometric" class="section level3">
+<h3>10.3.2. Geometric</h3>
+<blockquote>
+<p>Sometimes a count variable is a number of events up until something happened. Call this “something” the terminating event. Often we want to model the probability of that event, a kind of analysis known as event history analysis or <strong>survival analysis</strong>. When the probability of the terminating event is constant through time (or distance), and the units of time (or distance) are discrete, a common likelihood function is the geometric distribution. This distribution has the form:</p>
+</blockquote>
+<p><span class="math display">\[\Pr \left(y | p\right) = p \left( 1-p \right)^{y-1}\]</span></p>
+<p>{{% alert note %}} The geometric distribution has maximum entropy for unbounded counts with constant expected value. {{% /alert %}}</p>
+<pre class="r"><code># simulate
+N &lt;- 100
+set.seed(1028)
+x &lt;- runif(N)
+
+set.seed(1028)
+y &lt;- rgeom(N, prob = invlogit(-1 + 2*x))
+
+list(y = y, x = x) %&gt;%
+    as_tibble() %&gt;%
+    ggplot(aes(x = x, y = y)) +
+    geom_point(size = 3/5, alpha = 2/3)</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-62-1.png" width="672" /></p>
+<pre class="r"><code>m10.18 &lt;-
+    brm(data = list(y = y, x = x), 
+        family = geometric(link = &quot;log&quot;),
+        y ~ 0 + intercept + x,
+        prior = c(set_prior(&quot;normal(0, 10)&quot;, class = &quot;b&quot;, coef = &quot;intercept&quot;),
+                  set_prior(&quot;normal(0, 1)&quot;, class = &quot;b&quot;)),
+        chains = 2, iter = 2500, warmup = 500, cores = 2)
+
+print(m10.18)</code></pre>
+<pre><code>##  Family: geometric 
+##   Links: mu = log 
+## Formula: y ~ 0 + intercept + x 
+##    Data: list(y = y, x = x) (Number of observations: 100) 
+## Samples: 2 chains, each with iter = 2500; warmup = 500; thin = 1; 
+##          total post-warmup samples = 4000
+##     ICs: LOO = NA; WAIC = NA; R2 = NA
+##  
+## Population-Level Effects: 
+##           Estimate Est.Error l-95% CI u-95% CI Eff.Sample Rhat
+## intercept     1.16      0.23     0.72     1.60       1228 1.00
+## x            -2.28      0.44    -3.19    -1.46       1207 1.00
+## 
+## Samples were drawn using sampling(NUTS). For each parameter, Eff.Sample 
+## is a crude measure of effective sample size, and Rhat is the potential 
+## scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
+<pre class="r"><code>plot(marginal_effects(m10.18),
+     points = T,
+     point_args = c(size = 3/5, alpha = 2/3),
+     line_args = c(color = wes_palette(&quot;Moonrise2&quot;)[1],
+                   fill = wes_palette(&quot;Moonrise2&quot;)[1]))</code></pre>
+<p><img src="/post/2018-04-26-notes-on-statistical-rethinking-chapter-10-counting-and-classification_files/figure-html/unnamed-chunk-64-1.png" width="672" /></p>
+<p>{{% alert note %}} Check <a href="https://cran.r-project.org/web/packages/brms/vignettes/brms_families.html">Parameterization of Response Distributions in brms</a> {{% /alert %}}</p>
+</div>
+</div>
+<div id="references" class="section level2">
+<h2>References</h2>
+<p>McElreath, R. (2016). <em>Statistical rethinking: A Bayesian course with examples in R and Stan.</em> Chapman &amp; Hall/CRC Press.</p>
+<p>Kurz, A. S. (2018, March 9). <em>brms, ggplot2 and tidyverse code, by chapter</em>. Retrieved from <a href="https://goo.gl/JbvNTj" class="uri">https://goo.gl/JbvNTj</a></p>
+</div>

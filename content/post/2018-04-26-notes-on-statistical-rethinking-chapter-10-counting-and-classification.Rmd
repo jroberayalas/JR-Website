@@ -1,0 +1,1076 @@
+---
+title: Notes on Statistical Rethinking (Chapter 10 - Counting and Classification)
+author: José Roberto Ayala Solares
+date: '2018-04-26'
+slug: notes-on-statistical-rethinking-chapter-10-counting-and-classification
+categories:
+  - StatisticalRethinking
+tags:
+  - bayesian
+  - notes
+summary: Notes for Chapter 10 of [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/)
+---
+
+{{% alert note %}}
+A fundamental difficulty with these models is that parameters are on a different scale, typically log-odds (for binomial) or log-rate (for Poisson), than the outcome variable they describe.
+{{% /alert %}}
+
+## 10.1. Binomial regression
+> A family of related procedures that model a binary classification for which the total of both categories is known.
+
+The binomial distribution is denoted as:
+
+$$y \sim \text{Binomial}\left( n,p \right) $$
+
+where $y$ is a count (zero or a positive whole number), $p$ is the probability any particular “trial” is a success, and $n$ is the number of trials. 
+
+{{% alert note %}}
+As the basis for a generalized linear model, the binomial distribution has maximum entropy when each trial must result in one of two events and the expected value is constant.
+{{% /alert %}}
+
+> There are two common flavors of GLM that use binomial likelihood functions:
+
+> 1. **Logistic regression** is the common name when the data are organized into single-trial cases, such that the outcome variable can only take values 0 and 1.
+2. When individual trials with the same covariate values are instead aggregated together, it is common to speak of an **aggregated binomial regression**. In this case, the outcome can take the value zero or any positive integer up to n, the number of trials.
+
+{{% alert warning %}}
+It is important to never convert counts to proportions before analysis, because doing so destroys information about sample size.
+{{% /alert %}}
+
+### 10.1.1. Logistic regression: Prosocial chimpanzees
+
+```{r message=FALSE}
+library(rethinking)
+data(chimpanzees)
+d <- chimpanzees
+detach(package:rethinking)
+rm(chimpanzees)
+
+library(brms)
+
+library(tidyverse)
+glimpse(d)
+```
+
+> The outcome `pulled_left` is a 0 or 1 indicator that the focal animal pulled the left-hand lever. The predictor `prosoc_left` is a 0/1 indicator that the left-hand lever was (1) or was not (0) attached to the prosocial option, the side with two pieces of food. The `condition` predictor is another 0/1 indicator, with value 1 for the partner condition and value 0 for the control condition.
+
+$$\begin{eqnarray} { L }_{ i } & \sim  & \text{Bernoulli}\left( p_i \right) \\ \text{ logit} \left( { p }_{ i } \right) & = & \alpha + \left( { \beta  }_{ P } + { \beta  }_{ PC } C_i \right) P_i \\ \alpha  & \sim  & \text{Normal}(0,10) \\ { \beta  }_{ P } & \sim  & \text{Normal}(0,10) \\ { \beta  }_{ PC }  & \sim  & \text{Normal}(0,10) \end{eqnarray}$$
+
+> Here $L$ indicates `pulled_left`, $P$ indicates `prosoc_left`, and $C$ indicates `condition`. The tricky part of the model above is the linear model for $\text{logit} \left( { p }_{ i } \right)$. It is an interaction model, in which the association between $P_i$ and the log-odds that $L_i = 1$ depends upon the value of $C_i$. But note that there is no main effect of $C_i$ itself, no plain beta-coefficient for condition. Why? Because there is no reason to hypothesize that the presence or absence of another animal creates a tendency to pull the left-hand lever. This is equivalent to assuming that the main effect of condition is exactly zero.
+
+```{r message=FALSE, cache=TRUE}
+m10.1 <-
+    brm(data = d, family = bernoulli,
+        pulled_left ~ 1,
+        prior = c(set_prior("normal(0, 10)", class = "Intercept")))
+
+posterior_samples(m10.1) %>%
+    select(-lp__) %>% 
+    gather(parameter) %>%
+    group_by(parameter) %>%
+    summarise(mean = mean(value),
+              SD   = sd(value),
+              `2.5_percentile`  = quantile(value, probs = .025),
+              `97.5_percentile` = quantile(value, probs = .975)) %>%
+    mutate_if(is.numeric, round, digits = 2)
+```
+
+```{r}
+invlogit <- function(x){1/(1 + exp(-x))}
+
+fixef(m10.1) %>%
+    invlogit()
+```
+
+```{r message=FALSE, cache=TRUE}
+m10.2 <-
+    brm(data = d, family = bernoulli,
+        pulled_left ~ 1 + prosoc_left,
+        prior = c(set_prior("normal(0, 10)", class = "Intercept"),
+                  set_prior("normal(0, 10)", class = "b")))
+
+m10.3 <-
+    brm(data = d, family = bernoulli,
+        pulled_left ~ 1 + prosoc_left + condition:prosoc_left ,
+        prior = c(set_prior("normal(0, 10)", class = "Intercept"),
+                  set_prior("normal(0, 10)", class = "b")))
+```
+
+Using the `loo` package to make the comparison:
+
+```{r}
+w_m10.1 <- waic(m10.1)
+w_m10.2 <- waic(m10.2)
+w_m10.3 <- waic(m10.3)
+loo::compare(w_m10.1, w_m10.2, w_m10.3)
+```
+
+```{r}
+library(wesanderson)
+
+wes_palette("Moonrise1")
+
+library(ggthemes)
+library(bayesplot)
+
+theme_set(theme_default() + 
+            theme_tufte() +
+            theme(plot.background = element_rect(fill = wes_palette("Moonrise1")[3],
+                                                 color = wes_palette("Moonrise1")[3])))
+```
+
+```{r}
+tibble(model = c("m10.1", "m10.2", "m10.3"),
+       waic  = c(w_m10.1$estimates[3, 1], w_m10.2$estimates[3, 1], w_m10.3$estimates[3, 1]),
+       se    = c(w_m10.1$estimates[3, 2], w_m10.2$estimates[3, 2], w_m10.3$estimates[3, 2])) %>%
+    ggplot() +
+    geom_pointrange(aes(x = reorder(model, -waic), y = waic,
+                        ymin = waic - se,
+                        ymax = waic + se,
+                        color = model),
+                    shape = 16) +
+    scale_color_manual(values = wes_palette("Moonrise1")[c(1:2, 4)]) +
+    coord_flip() +
+    labs(x = NULL, y = NULL,
+         title = "WAIC") +
+    theme(axis.ticks.y = element_blank(),
+          legend.position = "none")
+```
+
+```{r}
+# this helps us set our custom color scheme
+color_scheme_set(c(wes_palette("Moonrise2")[3], 
+                   wes_palette("Moonrise2")[1], 
+                   wes_palette("Moonrise2")[2], 
+                   wes_palette("Moonrise2")[2], 
+                   wes_palette("Moonrise2")[1], 
+                   wes_palette("Moonrise2")[1]))
+
+# the actual plot
+mcmc_pairs(x = posterior_samples(m10.3),
+           pars = c("b_Intercept", "b_prosoc_left", "b_prosoc_left:condition"),
+           off_diag_args = list(size = 1/10, alpha = 1/6),
+           diag_fun = "dens")
+```
+
+{{% alert note %}}
+The **absolute effect** of a parameter is the change in the probability of the outcome. So it depends upon all of the parameters, and it tells us the practical impact of a change in a predictor. The **relative effect** is instead just a proportional change induced by a change in the predictor.
+{{% /alert %}}
+
+> The customary measure of relative effect for a logistic model is the proportional change in odds.
+
+```{r}
+fixef(m10.3)[2] %>%
+    exp()
+```
+
+```{r}
+(4 + fixef(m10.3)[2]) %>%
+    invlogit()
+```
+
+```{r}
+# The combined fitted() results of the three models weighted by their WAICs
+pp_a <- 
+    pp_average(m10.1, m10.2, m10.3,
+               weights = "waic",
+               method = "fitted") %>% 
+    as_tibble() %>% 
+    bind_cols(m10.3$data) %>% 
+    distinct(Estimate, `2.5%ile`, `97.5%ile`, condition, prosoc_left) %>% 
+    mutate(x_axis = str_c(prosoc_left, condition, sep = "/")) %>%
+    mutate(x_axis = factor(x_axis, levels = c("0/0", "1/0", "0/1", "1/1"))) %>% 
+    rename(pulled_left = Estimate)
+
+# The empirically-based summaries
+d_plot <-
+    d %>%
+    group_by(actor, condition, prosoc_left) %>%
+    summarise(pulled_left = mean(pulled_left)) %>%
+    mutate(x_axis = str_c(prosoc_left, condition, sep = "/")) %>%
+    mutate(x_axis = factor(x_axis, levels = c("0/0", "1/0", "0/1", "1/1")))
+
+# The plot
+ggplot() +
+    geom_ribbon(data = pp_a,
+                aes(x = x_axis,
+                    ymin = `2.5%ile`, 
+                    ymax = `97.5%ile`,
+                    group = 0),
+                fill = wes_palette("Moonrise1")[2]) +
+    geom_line(data = pp_a,
+              aes(x = x_axis, 
+                  y = pulled_left,
+                  group = 0),
+              color = wes_palette("Moonrise1")[1]) +
+    geom_line(data = d_plot,
+              aes(x = x_axis, y = pulled_left, group = actor),
+              color = wes_palette("Moonrise1")[4], size = 1/3) +
+    scale_x_discrete(expand = c(.03, .03)) +
+    coord_cartesian(ylim = 0:1) +
+    labs(x = "prosoc_left/condition",
+         y = "proportion pulled left") +
+    theme(axis.ticks.x = element_blank())
+```
+
+> The model did what we asked it to do: Estimate the average across all chimpanzees. But there is a lot of variation among individuals. In principle, individual variation could mask the association of interest.
+
+$$\begin{eqnarray} { L }_{ i } & \sim  & \text{Bernoulli}\left( p_i \right) \\ \text{ logit} \left( { p }_{ i } \right) & = & \alpha_{\text{ACTOR}\left[ i \right]} + \left( { \beta  }_{ P } + { \beta  }_{ PC } C_i \right) P_i \\ \alpha_{\text{ACTOR}\left[ i \right]}  & \sim  & \text{Normal}(0,10) \\ { \beta  }_{ P } & \sim  & \text{Normal}(0,10) \\ { \beta  }_{ PC }  & \sim  & \text{Normal}(0,10) \end{eqnarray}$$
+
+```{r message=FALSE, cache=TRUE}
+m10.4 <-
+    brm(data = d, family = bernoulli,
+        pulled_left ~ 0 + factor(actor) + prosoc_left + condition:prosoc_left ,
+        prior = c(set_prior("normal(0, 10)", class = "b")),
+        chains = 2, iter = 2500, warmup = 500, cores = 2,
+        control = list(adapt_delta = 0.9))
+
+print(m10.4)
+```
+
+```{r}
+posterior_samples(m10.4) %>%
+    ggplot(aes(x = b_factoractor2)) +
+    geom_density(color = "transparent",
+                 fill = wes_palette("Moonrise2")[1]) +
+    scale_y_continuous(NULL, breaks = NULL) +
+    labs(x = NULL,
+         title = "Actor 2's large and uncertain intercept",
+         subtitle = "Once your log-odds are above, like, 4, it's all\npretty much a probability of 1.")
+```
+
+```{r}
+d_plot_4 <-
+    d_plot %>%
+    filter(actor %in% c(3, 5:7)) %>%
+    ungroup() %>% 
+    mutate(actor = str_c("actor ", actor))
+
+fitted(m10.4) %>%
+    as_tibble() %>% 
+    bind_cols(m10.4$data) %>% 
+    filter(actor %in% c(3, 5:7)) %>% 
+    distinct(Estimate, `2.5%ile`, `97.5%ile`, condition, prosoc_left, actor) %>% 
+    select(actor, everything()) %>% 
+    mutate(actor = str_c("actor ", actor)) %>% 
+    mutate(x_axis = str_c(prosoc_left, condition, sep = "/")) %>%
+    mutate(x_axis = factor(x_axis, levels = c("0/0", "1/0", "0/1", "1/1"))) %>% 
+    rename(pulled_left = Estimate) %>%
+    ggplot(aes(x = x_axis, y = pulled_left, group = actor)) +
+    geom_ribbon(aes(x = x_axis,
+                    ymin = `2.5%ile`, 
+                    ymax = `97.5%ile`),
+                fill = wes_palette("Moonrise2")[2]) +
+    geom_line(aes(x = x_axis, 
+                  y = pulled_left)) +
+    geom_line(data = d_plot_4,
+              color = wes_palette("Moonrise2")[1], size = 1.25) +
+    scale_x_discrete(expand = c(.03, .03)) +
+    coord_cartesian(ylim = 0:1) +
+    labs(x = "prosoc_left/condition",
+         y = "proportion pulled left") +
+    theme(axis.ticks.x = element_blank(),
+          # color came from: http://www.color-hex.com/color/ccc591
+          panel.background = element_rect(fill = "#d1ca9c",
+                                          color = "transparent")) +
+    facet_wrap(~actor)
+```
+
+### 10.1.2. Aggregated binomial: Chimpanzees again, condensed
+
+```{r}
+d_aggregated <-
+    d %>%
+    select(-recipient, -block, -trial, -chose_prosoc) %>%
+    group_by(actor, condition, prosoc_left) %>%
+    summarise(x = sum(pulled_left))
+
+d_aggregated %>%
+    slice(1:8)
+```
+
+```{r message=FALSE, cache=TRUE}
+m10.5 <-
+    brm(data = d_aggregated, family = binomial,
+        x | trials(18) ~ 1 + prosoc_left + condition:prosoc_left ,
+        prior = c(set_prior("normal(0, 10)", class = "Intercept"),
+                  set_prior("normal(0, 10)", class = "b")),
+        iter = 2500, warmup = 500, cores = 2, chains = 2)
+```
+
+Comparing the models:
+
+```{r}
+fixef(m10.3) %>% round(digits = 2)
+```
+
+```{r}
+fixef(m10.5) %>% round(digits = 2)
+```
+
+### 10.1.3. Aggregated binomial: Graduate school admissions
+
+```{r}
+library(rethinking)
+data(UCBadmit)
+d <- UCBadmit
+detach(package:rethinking)
+library(brms)
+rm(UCBadmit)
+
+d <- 
+    d %>%
+    mutate(male = ifelse(applicant.gender == "male", 1, 0))
+
+d
+```
+
+```{r message=FALSE, cache=TRUE}
+m10.6 <- brm(admit | trials(applications) ~ 1 + male, data = d, family = binomial,
+             prior = c(set_prior("normal(0, 10)", class = "Intercept"),
+                       set_prior("normal(0, 10)", class = "b")),
+             iter = 2500, warmup = 500, cores = 2, chains = 2)
+
+m10.7 <- brm(admit | trials(applications) ~ 1, data = d, family = binomial,
+             prior = c(set_prior("normal(0, 10)", class = "Intercept")),
+             iter = 2500, warmup = 500, cores = 2, chains = 2)
+```
+
+```{r}
+loo::compare(waic(m10.6), waic(m10.7))
+```
+
+```{r}
+post <- posterior_samples(m10.6)
+
+post %>%
+    mutate(p_admit_male   = invlogit(b_Intercept + b_male),
+           p_admit_female = invlogit(b_Intercept),
+           diff_admit     = p_admit_male - p_admit_female) %>%
+    summarise(`2.5%`  = quantile(diff_admit, probs = .025),
+              `50%`   = median(diff_admit),
+              `97.5%` = quantile(diff_admit, probs = .975))
+```
+
+```{r}
+d <-
+    d %>%
+    mutate(case = factor(1:12))
+
+p_10.6 <- 
+    fitted(m10.6) %>% 
+    as_tibble() %>% 
+    bind_cols(d)
+
+d_text <-
+    d %>%
+    group_by(dept) %>%
+    summarise(case = mean(as.numeric(case)),
+              admit = mean(admit/applications) + .05)
+
+ggplot(data = d, aes(x = case, y = admit/applications)) +
+    geom_pointrange(data = p_10.6, 
+                    aes(y = Estimate/applications,
+                        ymin = `2.5%ile`/applications ,
+                        ymax = `97.5%ile`/applications),
+                    color = wes_palette("Moonrise2")[1],
+                    shape = 1, alpha = 1/3) +
+    geom_point(color = wes_palette("Moonrise2")[2]) +
+    geom_line(aes(group = dept),
+              color = wes_palette("Moonrise2")[2]) +
+    geom_text(data = d_text,
+              aes(y = admit, label = dept),
+              color = wes_palette("Moonrise2")[2],
+              family = "serif") +
+    coord_cartesian(ylim = 0:1) +
+    labs(y = "Proportion admitted",
+         title = "Posterior validation check") +
+    theme(axis.ticks.x = element_blank())
+```
+
+```{r message=FALSE, cache=TRUE}
+m10.8 <-
+    brm(data = d, family = binomial,
+        admit | trials(applications) ~ 0 + dept,
+        prior = c(set_prior("normal(0, 10)", class = "b")),
+        iter = 2500, warmup = 500, cores = 2, chains = 2)
+
+m10.9 <-
+    brm(data = d, family = binomial,
+        admit | trials(applications) ~ 0 + dept + male ,
+        prior = c(set_prior("normal(0, 10)", class = "b")),
+        iter = 2500, warmup = 500, cores = 2, chains = 2)
+```
+
+```{r}
+fixef(m10.9) %>% round(digits = 2)
+```
+
+```{r}
+m10.9$fit
+```
+
+```{r message=FALSE, cache=TRUE}
+loos <- loo(m10.6, m10.7, m10.8, m10.9, 
+            reloo = T,
+            cores = 2)
+loos
+```
+
+```{r}
+d <-
+    d %>%
+    mutate(case = factor(1:12))
+
+p_10.9 <- 
+    fitted(m10.9) %>% 
+    as_tibble() %>% 
+    bind_cols(d)
+
+d_text <-
+    d %>%
+    group_by(dept) %>%
+    summarise(case = mean(as.numeric(case)),
+              admit = mean(admit/applications) + .05)
+
+ggplot(data = d, aes(x = case, y = admit/applications)) +
+    geom_pointrange(data = p_10.9, 
+                    aes(y = Estimate/applications,
+                        ymin = `2.5%ile`/applications ,
+                        ymax = `97.5%ile`/applications),
+                    color = wes_palette("Moonrise2")[1],
+                    shape = 1, alpha = 1/3) +
+    geom_point(color = wes_palette("Moonrise2")[2]) +
+    geom_line(aes(group = dept),
+              color = wes_palette("Moonrise2")[2]) +
+    geom_text(data = d_text,
+              aes(y = admit, label = dept),
+              color = wes_palette("Moonrise2")[2],
+              family = "serif") +
+    coord_cartesian(ylim = 0:1) +
+    labs(y = "Proportion admitted",
+         title = "Posterior validation check") +
+    theme(axis.ticks.x = element_blank())
+```
+
+#### Information criteria digression
+
+```{r}
+l_m10.6 <- LOO(m10.6)
+l_m10.6
+```
+
+The Pareto $k$ parameter can be used as a diagnostic tool. Each case in the data gets its own $k$ value and we like it when those $k$s are low. The makers of the `loo` package get worried when those $k$s exceed 0.7 and as a result, `loo()` spits out a warning message when they do.
+
+```{r message=FALSE}
+library(loo)
+pareto_k_table(l_m10.6)
+```
+
+```{r}
+plot(l_m10.6)
+```
+
+```{r}
+pareto_k_ids(l_m10.6, threshold = 1)
+```
+
+```{r message=FALSE, cache=TRUE}
+l_m10.6_reloo <- LOO(m10.6, reloo = T)
+l_m10.6_reloo
+```
+
+{{% alert note %}}
+Check this [vignette](https://github.com/ASKurz/Student-s-t_regression) on how the loo package’s Pareto $k$ can help detect outliers.
+{{% /alert %}}
+
+### 10.1.4. Fitting binomial regressions with `glm`
+
+```{r message=FALSE, cache=TRUE}
+# outcome and predictor almost perfectly associated
+y <- c(rep(0, 10), rep(1, 10))
+x <- c(rep(-1, 9), rep(1, 11))
+
+b.good <-
+    brm(data = list(y = y, x = x), family = bernoulli,
+        y ~ 1 + x,
+        prior = c(set_prior("normal(0, 10)", class = "Intercept"),
+                  set_prior("normal(0, 10)", class = "b")))
+```
+
+```{r}
+pairs(b.good,
+      off_diag_args = list(size = 1/10, alpha = 1/6))
+```
+
+## 10.2. Poisson regression
+> It is a GLM that models a count outcome without a known maximum. The Poisson model can also be conceived of as a binomial model with a very large maximum but a very small probability per trial.
+
+> A Poisson distribution is useful because it allows us to model binomial events for which the number of trials $n$ is unknown or uncountably large.
+
+$$y \sim \text{Poisson} \left( \lambda \right)$$
+
+where $\lambda$ is the expected value of the outcome $y$.
+
+To build a GLM with this likelihood, the conventional link function for a Poisson model is the log link, i.e.
+
+$$\begin{eqnarray} { y }_{ i } & \sim  & \text{Poisson}\left( \lambda_i \right) \\ \log \left( { \lambda }_{ i } \right) & = & \alpha + \beta x_i \end{eqnarray}$$
+
+{{% alert warning %}}
+Exponential relationships grow very quickly, and few natural phenomena can remain exponential for long. So one thing to always check with a log link is whether it makes sense at all ranges of the predictor variables.
+{{% /alert %}}
+
+> The parameter $\lambda$ is the expected value, but it’s also commonly thought of as a _rate_. Both interpretations are correct, and realizing this allows us to make Poisson models for which the
+_exposure_ varies across cases $i$.
+
+> Implicitly, $\lambda$ is equal to an expected number of events, $\mu$, per unit time or distance, $\tau$. This implies that $\lambda = \mu / \tau$, which lets us redefine the link:
+
+$$\begin{eqnarray} { y }_{ i } & \sim  & \text{Poisson}\left( \lambda_i \right) \\ \log  { \lambda }_{ i } & = & \log { \frac { { \mu  }_{ i } }{ { \tau  }_{ i } }  } =\log { { \mu  }_{ i } } -\log { { \tau  }_{ i } } = \alpha + \beta x_i \end{eqnarray}$$
+
+> The $\tau$ values are the exposures. When the exposure varies across cases, then $\tau_i$ does the important work of correctly scaling the expected number of events for each case $i$. So you can model cases with different exposures just by adding a predictor, the logarithm of the exposure, without adding a parameter for it.
+
+$$\begin{eqnarray} { y }_{ i } & \sim  & \text{Poisson}\left( \mu_i \right) \\ \log  { \mu }_{ i } & = & \log { { \tau  }_{ i } } + \alpha + \beta x_i \end{eqnarray}$$
+
+### 10.2.1. Example: Oceanic tool complexity
+
+```{r message=FALSE}
+library(rethinking)
+data(Kline)
+d <- Kline
+detach(package:rethinking)
+library(brms)
+rm(Kline)
+
+d <-
+  d %>%
+  mutate(log_pop = log(population),
+         contact_high = ifelse(contact == "high", 1, 0))
+
+d
+```
+
+The model to consider is:
+
+$$\begin{eqnarray} { T }_{ i } & \sim  & \text{Poisson}\left( \lambda_i \right) \\ \log \left( { \lambda }_{ i } \right) & = & \alpha + { \beta  }_{ P } \log P_i + { \beta  }_{ C } C_i + { \beta  }_{ PC } C_i \log P_i \\ \alpha  & \sim  & \text{Normal}(0,100) \\ { \beta  }_{ P } & \sim  & \text{Normal}(0,1) \\ { \beta  }_{ C } & \sim  & \text{Normal}(0,1) \\ { \beta  }_{ PC }  & \sim  & \text{Normal}(0,1) \end{eqnarray}$$
+
+> Strongly regularizing priors are used because the sample is small, so we should fear overfitting more. And since the predictors are not centered, there’s no telling where $\alpha$ should end up, so an essentially flat prior is assigned to it.
+
+```{r message=FALSE, cache=TRUE}
+m10.10 <- brm(data = d, family = poisson,
+              total_tools ~ 1 + log_pop + contact_high + contact_high:log_pop,
+              prior = c(set_prior("normal(0, 100)", class = "Intercept"),
+                        set_prior("normal(0, 1)", class = "b")),
+              iter = 3000, warmup = 1000, chains = 4, cores = 4)
+
+print(m10.10)
+```
+
+```{r}
+post <-
+    posterior_samples(m10.10)
+
+post %>%
+    select(-lp__) %>%
+    rename(b_interaction = `b_log_pop:contact_high`) %>%
+    cor() %>% 
+    round(digits = 2)
+```
+
+```{r}
+# We'll set a renewed color theme
+color_scheme_set(c(wes_palette("Moonrise2")[2],
+                   wes_palette("Moonrise2")[1], 
+                   wes_palette("Moonrise2")[4], 
+                   wes_palette("Moonrise2")[2], 
+                   wes_palette("Moonrise2")[1], 
+                   wes_palette("Moonrise2")[1]))
+
+post %>%
+    select(-lp__) %>% 
+    rename(b_interaction = `b_log_pop:contact_high`) %>%
+    mcmc_intervals(prob = .5, prob_outer = .95) +
+    theme(axis.ticks.y = element_blank(),
+          axis.text.y = element_text(hjust = 0))
+```
+
+Check if contact rate has no impact on prediction in this model:
+
+```{r}
+post <-
+    post %>%
+    mutate(lambda_high = exp(b_Intercept + b_contact_high + (b_log_pop + `b_log_pop:contact_high`)*8),
+           lambda_low = exp(b_Intercept + b_log_pop*8),
+           diff = lambda_high - lambda_low) 
+
+post %>%
+    summarise(sum = sum(diff > 0)/length(diff))
+```
+
+```{r}
+post %>%
+    ggplot(aes(x = diff)) +
+    geom_density(color = "transparent",
+                 fill = wes_palette("Moonrise2")[1]) +
+    geom_vline(xintercept = 0, linetype = 2,
+               color = wes_palette("Moonrise2")[2]) +
+    scale_y_continuous(NULL, breaks = NULL) +
+    labs(x = "lambda_high - lambda_low")
+```
+
+```{r}
+# Intermediary tibbles for our the dot and line portoin of the plot
+point_tibble <-
+    tibble(x = c(median(post$b_contact_high), min(post$b_contact_high)),
+           y = c(min(post$`b_log_pop:contact_high`), median(post$`b_log_pop:contact_high`)))
+
+line_tibble <-
+    tibble(parameter = rep(c("b_contact_high", "b_log_pop:contact_high"), each = 2),
+           x = c(quantile(post$b_contact_high, probs = c(.025, .975)),
+                 rep(min(post$b_contact_high), times = 2)),
+           y = c(rep(min(post$`b_log_pop:contact_high`), times = 2),
+                 quantile(post$`b_log_pop:contact_high`, probs = c(.025, .975))))
+
+# the plot
+post %>% 
+    ggplot(aes(x = b_contact_high, y = `b_log_pop:contact_high`)) +
+    geom_point(color = wes_palette("Moonrise2")[1],
+               size = 1/10, alpha = 1/10) +
+    geom_point(data = point_tibble,
+               aes(x = x, y = y)) +
+    geom_line(data = line_tibble,
+              aes(x = x, y = y, group = parameter)) + 
+    labs(subtitle = "Neither parameter is conventionally “significant,” but together they imply\nthat contact rate consistently influences prediction.")
+```
+
+> How can contact rate be significant when both `b_contact_high` and `b_interaction` are, conventionally speaking, non-significant? One reason is because the uncertainty in the parameters is correlated.
+
+{{% alert warning %}}
+You can’t just inspect the marginal uncertainty in each parameter from the table of estimates, and get an accurate understanding of the impact of the joint uncertainty on prediction.
+{{% /alert %}}
+
+```{r message=FALSE, cache=TRUE}
+# no interaction
+m10.11 <- 
+    update(m10.10, formula = total_tools ~ 1 + log_pop + contact_high,
+           iter = 3000, warmup = 1000, chains = 4, cores = 4)
+
+# no contact rate
+m10.12 <-
+    update(m10.10, formula = total_tools ~ 1 + log_pop,
+           iter = 3000, warmup = 1000, chains = 4, cores = 4)
+
+# no log-population
+m10.13 <-
+    update(m10.10, formula = total_tools ~ 1 + contact_high,
+           iter = 3000, warmup = 1000, chains = 4, cores = 4)
+
+# intercept only
+m10.14 <-
+    update(m10.10, formula = total_tools ~ 1,
+           iter = 3000, warmup = 1000, chains = 4, cores = 4)
+```
+
+```{r}
+w_m10.10 <- waic(m10.10)
+w_m10.11 <- waic(m10.11)
+w_m10.12 <- waic(m10.12)
+w_m10.13 <- waic(m10.13)
+w_m10.14 <- waic(m10.14)
+ 
+compare_ic(w_m10.10, w_m10.11, w_m10.12, w_m10.13, w_m10.14)
+```
+
+```{r}
+tibble(model = c("m10.10", "m10.11", "m10.12", "m10.13", "m10.14"),
+       waic  = c(w_m10.10$estimates[3, 1], w_m10.11$estimates[3, 1], w_m10.12$estimates[3, 1], w_m10.13$estimates[3, 1], w_m10.14$estimates[3, 1]),
+       se    = c(w_m10.10$estimates[3, 2], w_m10.11$estimates[3, 2], w_m10.12$estimates[3, 2], w_m10.13$estimates[3, 2], w_m10.14$estimates[3, 2])) %>%
+    ggplot() +
+    geom_pointrange(aes(x = reorder(model, -waic), y = waic,
+                        ymin = waic - se,
+                        ymax = waic + se,
+                        color = model),
+                    shape = 16) +
+    scale_color_manual(values = wes_palette("Moonrise2")[c(1, 2, 1, 1, 1)]) +
+    coord_flip() +
+    labs(x = NULL, y = NULL,
+         title = "WAIC") +
+    theme(axis.ticks.y = element_blank(),
+          legend.position = "none")
+```
+
+```{r}
+nd <-
+    tibble(log_pop = rep(seq(from = 6.5, 
+                             to = 13, 
+                             length.out = 50),
+                         times = 2),
+           contact_high = rep(0:1, each = 50))
+
+ppa_10.9 <- 
+    pp_average(m10.10, m10.11, m10.12,
+               weights = "loo",
+               method = "fitted",
+               newdata = nd) %>%
+    as_tibble() %>%
+    bind_cols(nd)
+
+ppa_10.9 %>%
+    ggplot(aes(x = log_pop,
+               group = contact_high)) +
+    geom_ribbon(aes(ymin = `2.5%ile`,
+                    ymax = `97.5%ile`,
+                    fill = contact_high),
+                alpha = 1/4) +
+    geom_line(aes(y = Estimate, color = contact_high)) +
+    geom_text(data = d, 
+              aes(y = total_tools,
+                  label = total_tools,
+                  color = contact_high),
+              size = 3.5) +
+    coord_cartesian(xlim = c(7.1, 12.4),
+                    ylim = c(12, 70)) +
+    labs(x = "log population",
+         y = "total tools",
+         subtitle = "Blue is the high contact rate and black is the low. Notice that both trends curve\n dramatically upwards as log-population increases. The impact of contact rate can be seen by the distance\n between the blue and gray predictions. There is plenty of overlap, especially at low and high\n log-population values, where there are no islands with high contact rate.") +
+    theme(legend.position = "none",
+          panel.border = element_blank())
+```
+
+### 10.2.2. MCMC islands
+
+```{r message=FALSE, cache=TRUE}
+d <-
+    d %>%
+    mutate(log_pop_c = log_pop - mean(log_pop))
+
+m10.10.c <-
+    brm(data = d, family = poisson,
+        total_tools ~ 1 + log_pop_c + contact_high + contact_high:log_pop_c,
+        prior = c(set_prior("normal(0, 10)", class = "Intercept"),
+                  set_prior("normal(0, 10)", class = "b")),
+        iter = 3000, warmup = 1000, chains = 4, cores = 4)
+```
+
+```{r}
+# this helps us set our custom color scheme
+color_scheme_set(c(wes_palette("Moonrise2")[3], 
+                   wes_palette("Moonrise2")[1], 
+                   wes_palette("Moonrise2")[2], 
+                   wes_palette("Moonrise2")[2], 
+                   wes_palette("Moonrise2")[1], 
+                   wes_palette("Moonrise2")[1]))
+
+# the actual plot
+mcmc_pairs(x = posterior_samples(m10.10),
+           pars = c("b_Intercept", "b_log_pop", "b_contact_high", "b_log_pop:contact_high"),
+           off_diag_args = list(size = 1/10, alpha = 1/10),
+           diag_fun = "dens")
+```
+
+```{r}
+mcmc_pairs(x = posterior_samples(m10.10.c),
+           pars = c("b_Intercept", "b_log_pop_c", "b_contact_high", "b_log_pop_c:contact_high"),
+           off_diag_args = list(size = 1/10, alpha = 1/10),
+           diag_fun = "dens")
+```
+
+{{% alert note %}}
+Hamiltonian Monte Carlo is very good at handling strong correlations in the posterior distribution, but it is going to be less efficient. 
+
+When strong correlations are gone, the Markov chain results in a greater number of **effective samples**.
+{{% /alert %}}
+
+{{% alert note %}}
+Check the [psych](https://cran.r-project.org/web/packages/psych/vignettes/intro.pdf) package for correlation matrices.
+{{% /alert %}}
+
+### 10.2.3. Example: Exposure and the offset
+
+```{r}
+set.seed(3838) # making it reproducible 
+
+num_days <- 30
+y <- rpois(num_days, 1.5)
+
+set.seed(3838) # making it reproducible 
+
+num_weeks <- 4
+y_new <- rpois(num_weeks, 0.5*7)
+
+d <- 
+  tibble(y = c(y, y_new), 
+         days = c(rep(1, 30), rep(7, 4)),
+         monastery = c(rep(0, 30), rep(1, 4)))
+
+d
+```
+
+```{r message=FALSE, cache}
+d <-
+    d %>%
+    mutate(log_days = log(days))
+
+m10.15 <-
+    brm(data = d, family = poisson,
+        y ~ 1 + offset(log_days) + monastery,
+        prior = c(set_prior("normal(0, 100)", class = "Intercept"),
+                  set_prior("normal(0, 1)", class = "b")),
+        iter = 2500, warmup = 500, cores = 2, chains = 2)
+```
+
+{{% alert warning %}}
+We don’t use the offset again, when computing predictions, because the parameters are already on the same time scale.
+{{% /alert %}}
+
+```{r}
+posterior_samples(m10.15) %>%
+    mutate(lambda_old = exp(b_Intercept),
+           lambda_new  = exp(b_Intercept + b_monastery)) %>%
+    gather(key, value, -(b_Intercept:lp__)) %>%
+    mutate(key = factor(key, levels = c("lambda_old", "lambda_new"))) %>%
+    group_by(key) %>%
+    summarise(Mean = mean(value) %>% round(digits = 2),
+              StdDev = sd(value) %>% round(digits = 2),
+              LL = quantile(value, probs = .025) %>% round(digits = 2),
+              UL = quantile(value, probs = .975) %>% round(digits = 2)) 
+```
+
+## 10.3. Other count regressions
+
+### 10.3.1. Multinomial
+
+{{% alert note %}}
+When more than two types of unordered events are possible, and the probability of each type of event is constant across trials, then the maximum entropy distribution is the multinomial distribution.
+{{% /alert %}}
+
+$$\Pr\left( { { y }_{ 1 }, \dots, { y }_{ K } }|{ n,{ { p }_{ 1 }, \dots, { p }_{ K } } } \right) =\frac { n! }{ \prod _{ i }{ { y }_{ i }! }  } \prod _{ i=1 }^{ K }{ { p }_{ i }^{ { y }_{ i } } } $$
+
+> A model built on a multinomial distribution may also be called a categorical regression, usually when each event is isolated on a single row, like with logistic regression. In machine learning, this model type is sometimes known as the **maximum entropy classifier**.
+
+#### 10.3.1.1. Explicit multinomial models
+
+This approach uses the multinomial likelihood and a generalization of the logit link (the multinomial logit).
+
+The multinomial logit is a link function takes a vector of scores, one for each of $K$ event types, and computes the probability of a particular type of event $k$ as:
+
+$$\Pr\left( { k }|{ { { s }_{ 1 }\dots { s }_{ K } } } \right) =\frac { exp\left( { s }_{ k } \right)  }{ \sum _{ i=1 }^{ K }{ exp\left( { s }_{ i } \right)  }  } $$
+
+> Combined with this conventional link, this type of GLM is often called multinomial logistic regression.
+
+> In a binomial GLM, you can pick either of the two possible events and build a single linear model for its log odds. The other event is handled automatically. But in a multinomial (or categorical) GLM, you need $K-1$ linear models for $K$ types of events. In each of these, you can use any predictors and parameters you like (they don’t have to be the same, and there are often good reasons for them to be different). In the special case of two types of events, none of these choices arise, because there is only one linear model.
+
+> There are two basic cases: (1) predictors have different values for different types of events, and (2) parameters are distinct for each type of event. The first case is useful when each type of event has its own quantitative traits, and you want to estimate the association between those traits and the probability each type of event appears in the data. The second case is useful when you are interested instead in features of some entity that produces each event, whatever type it turns out to be.
+
+```{r}
+detach(package:brms)
+library(rethinking)
+
+# simulate career choices among 500 individuals
+N <- 500             # number of individuals
+income <- 1:3        # expected income of each career
+score <- 0.5*income  # scores for each career, based on income
+
+# next line converts scores to probabilities
+p <- softmax(score[1], score[2], score[3])
+
+# now simulate choice
+# outcome career holds event type values, not counts
+career <- rep(NA, N)  # empty vector of choices for each individual
+
+set.seed(2078)
+# sample chosen career for each individual
+for(i in 1:N) career[i] <- sample(1:3, size = 1, prob = p)
+
+career %>%
+    as_tibble() %>%
+    ggplot(aes(x = value %>% as.factor())) +
+    geom_bar(size = 0, fill = wes_palette("Moonrise2")[2])
+```
+
+```{r message=FALSE, cache=TRUE}
+detach(package:rethinking)
+library(brms)
+
+m10.16 <-
+    brm(data = list(career = career), 
+        family = categorical(link = "logit"),
+        career ~ 1,
+        prior = c(set_prior("normal(0, 5)", class = "Intercept")),
+        iter = 2500, warmup = 500, cores = 2, chains = 2)
+
+print(m10.16)
+```
+
+{{% alert warning %}}
+Be aware that the estimates you get from these models are extraordinarily difficult to interpret. You absolutely must convert them to a vector of probabilities, to make much sense of them. The principle reason is that the estimates swing around wildly, depending upon which event type you assign a constant score.
+{{% /alert %}}
+
+{{% alert note %}}
+Have a look at this blog post for an understanding of [multinomial logistic regression](https://thinkinator.com/2016/01/12/r-users-will-now-inevitably-become-bayesians/) models.
+{{% /alert %}}
+
+```{r message=FALSE}
+library(rethinking)
+
+N <- 100
+
+set.seed(2078)
+# simulate family incomes for each individual
+family_income <- runif(N)
+
+# assign a unique coefficient for each type of event
+b <- (1:-1)
+career <- rep(NA, N)  # empty vector of choices for each individual
+
+for (i in 1:N) {
+    score <- 0.5*(1:3) + b*family_income[i]
+    p <- softmax(score[1], score[2], score[3])
+    career[i] <- sample(1:3, size = 1, prob = p)
+}
+```
+
+```{r message=FALSE, cache=TRUE}
+detach(package:rethinking)
+library(brms)
+
+m10.17 <-
+    brm(data = list(career = career,
+                    family_income = family_income), 
+        family = categorical(link = "logit"),
+        career ~ 1 + family_income,
+        prior = c(set_prior("normal(0, 5)", class = "Intercept"),
+                  set_prior("normal(0, 5)", class = "b")),
+        iter = 2500, warmup = 500, cores = 2, chains = 2)
+
+print(m10.17)
+```
+
+#### 10.3.1.2. Multinomial in disguise as Poisson
+
+> Another way to fit a multinomial likelihood is to refactor it into a series of Poisson likelihoods
+
+```{r message=FALSE}
+library(rethinking)
+
+data(UCBadmit)
+d <- UCBadmit
+rm(UCBadmit)
+
+detach(package:rethinking)
+library(brms)
+```
+
+```{r message=FALSE, cache=TRUE}
+# binomial model of overall admission probability
+m_binom <-
+    brm(data = d, family = binomial,
+        admit | trials(applications) ~ 1,
+        prior = c(set_prior("normal(0, 100)", class = "Intercept")),
+        iter = 2000, warmup = 1000, cores = 3, chains = 3)
+
+# Poisson model of overall admission rate and rejection rate
+d <-
+    d %>%
+    mutate(rej = reject) # 'reject' is a reserved word
+
+m_pois <-
+    brm(data = d, family = poisson,
+        cbind(admit, rej) ~ 1,
+        prior = c(set_prior("normal(0, 100)", class = "Intercept")),
+        iter = 2000, warmup = 1000, cores = 3, chains = 3)
+
+print(m_pois)
+```
+
+```{r}
+posterior_samples(m_pois) %>%
+    ggplot(aes(x = exp(b_admit_Intercept))) +
+    geom_density(fill = wes_palette("Moonrise2")[2], size = 0) +
+    geom_vline(xintercept = mean(d$admit), color = wes_palette("Moonrise2")[1]) +
+    scale_y_continuous(NULL, breaks = NULL) +
+    labs(x = "# applications",
+         title = "Mean acceptance # across departments:",
+         subtitle = "The density is the posterior distribution. The line is the\nvalue in the data.")
+```
+
+```{r}
+posterior_samples(m_pois) %>%
+    ggplot(aes(x = exp(b_rej_Intercept))) +
+    geom_density(fill = wes_palette("Moonrise2")[1], size = 0) +
+    geom_vline(xintercept = mean(d$rej), color = wes_palette("Moonrise2")[2]) +
+    scale_y_continuous(NULL, breaks = NULL) +
+    labs(x = "# applications",
+         title = "Mean rejection # across departments:",
+         subtitle = "The density is the posterior distribution. The line is the\nvalue in the data.")
+```
+
+```{r}
+fixef(m_binom) %>%
+  invlogit()
+```
+
+```{r}
+k <- 
+    fixef(m_pois) %>%
+    as.numeric()
+
+exp(k[1])/(exp(k[1]) + exp(k[2]))
+```
+
+{{% alert note %}}
+Have a look at [Estimating Multivariate Models with brms](https://cran.r-project.org/web/packages/brms/vignettes/brms_multivariate.html).
+{{% /alert %}}
+
+### 10.3.2. Geometric
+
+> Sometimes a count variable is a number of events up until something happened. Call this “something” the terminating event. Often we want to model the probability of that event, a kind of analysis known as event history analysis or **survival analysis**. When the probability of the terminating event is constant through time (or distance), and the units of time (or distance) are discrete, a common likelihood function is the geometric distribution. This distribution has the form:
+
+$$\Pr \left(y | p\right) = p \left( 1-p \right)^{y-1}$$
+
+{{% alert note %}}
+The geometric distribution has maximum entropy for unbounded counts with constant expected value.
+{{% /alert %}}
+
+```{r}
+# simulate
+N <- 100
+set.seed(1028)
+x <- runif(N)
+
+set.seed(1028)
+y <- rgeom(N, prob = invlogit(-1 + 2*x))
+
+list(y = y, x = x) %>%
+    as_tibble() %>%
+    ggplot(aes(x = x, y = y)) +
+    geom_point(size = 3/5, alpha = 2/3)
+```
+
+```{r message=FALSE, cache=TRUE}
+m10.18 <-
+    brm(data = list(y = y, x = x), 
+        family = geometric(link = "log"),
+        y ~ 0 + intercept + x,
+        prior = c(set_prior("normal(0, 10)", class = "b", coef = "intercept"),
+                  set_prior("normal(0, 1)", class = "b")),
+        chains = 2, iter = 2500, warmup = 500, cores = 2)
+
+print(m10.18)
+```
+
+```{r}
+plot(marginal_effects(m10.18),
+     points = T,
+     point_args = c(size = 3/5, alpha = 2/3),
+     line_args = c(color = wes_palette("Moonrise2")[1],
+                   fill = wes_palette("Moonrise2")[1]))
+```
+
+{{% alert note %}}
+Check [Parameterization of Response Distributions in brms](https://cran.r-project.org/web/packages/brms/vignettes/brms_families.html)
+{{% /alert %}}
+
+## References
+McElreath, R. (2016). *Statistical rethinking: A Bayesian course with examples in R and Stan.* Chapman & Hall/CRC Press.
+
+Kurz, A. S. (2018, March 9). *brms, ggplot2 and tidyverse code, by chapter*. Retrieved from https://goo.gl/JbvNTj

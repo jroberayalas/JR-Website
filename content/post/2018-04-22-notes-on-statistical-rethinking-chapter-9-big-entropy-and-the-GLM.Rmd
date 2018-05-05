@@ -143,7 +143,7 @@ $$\text{ logit} \left( { p }_{ i } \right) = \log \frac { { p }_{ i } }{ 1-{ p }
 #### Log link
 > The log link maps a parameter that is defined over only positive real values onto a linear model.
 
-$$\begin{eqnarray} { y }_{ i } & \sim  & \text{ Normal }(\mu, { \sigma  }_{ i } ) \\ \log \left( { \sigma }_{ i } \right) & = & \alpha +{ \beta  }{ x }_{ i }  \end{eqnarray}$$
+$$\begin{eqnarray} { y }_{ i } & \sim  & \text{ Normal }(\mu, { \sigma  }_{ i } ) \\ \log \left( { \sigma }_{ i } \right) & = & \alpha +{ \beta  }{ x }_{ i } \end{eqnarray}$$
 
 which implies
 
