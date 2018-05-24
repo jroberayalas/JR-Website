@@ -1,0 +1,191 @@
+---
+title: Notes on Statistical Rethinking (Chapter 11 - Monsters and Mixtures)
+author: José Roberto Ayala Solares
+date: '2018-05-05'
+slug: notes-on-statistical-rethinking-chapter-11-monsters-and-mixtures
+categories:
+  - StatisticalRethinking
+tags:
+  - bayesian
+  - notes
+summary: Notes for Chapter 10 of [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/)
+---
+
+Mixture modeling help us transform our modeling to cope with the inconvenient realities of measurement, rather than transforming measurements to cope with the constraints of our models.
+
+## 11.1. Ordered categorical outcomes
+
+> It is very common in the social sciences, and occasional in the natural sciences, to have an outcome variable that is discrete, like a count, but in which the values merely indicate different ordered levels along some dimension. But unlike a count, the differences in value are not necessarily equal.
+
+> An ordered categorical variable is just a multinomial prediction problem. But the constraint that the categories be ordered demands a special treatment. What we’d like is for any associated predictor variable, as it increases, to move predictions progressively through the categories in sequence. The conventional solution is to use a cumulative link function.
+
+> By linking a linear model to cumulative probability, it is possible to guarantee the ordering of the outcomes.
+
+### 11.1.1. Example: Moral intuition
+
+```{r message=FALSE, cache=TRUE}
+library(rethinking)
+data(Trolley)
+d <- Trolley
+
+rm(Trolley)
+detach(package:rethinking, unload = T)
+library(brms)
+
+library(ggthemes)
+scales::show_col(canva_pal("Green fields")(4))
+```
+
+### 11.1.2. Describing an ordered distribution with intercepts
+
+```{r}
+library(tidyverse)
+
+hist_plot <- ggplot(data = d, aes(x = response, fill = ..x..)) +
+    geom_histogram(binwidth = 1/4, size = 0) +
+    scale_x_continuous(breaks = 1:7) +
+    theme_hc() +
+    scale_fill_gradient(low = canva_pal("Green fields")(4)[4],
+                        high = canva_pal("Green fields")(4)[1]) +
+    theme(axis.ticks.x = element_blank(),
+          plot.background = element_rect(fill = "grey92"),
+          legend.position = "none")
+
+cum_plot <- d %>%
+    group_by(response) %>% 
+    count() %>%
+    mutate(pr_k = n/nrow(d)) %>% 
+    ungroup() %>% 
+    mutate(cum_pr_k = cumsum(pr_k)) %>% 
+    ggplot(aes(x = response, y = cum_pr_k, 
+               fill = response)) +
+    geom_line(color = canva_pal("Green fields")(4)[2]) +
+    geom_point(shape = 21, colour = "grey92", 
+               size = 2.5, stroke = 1) +
+    scale_x_continuous(breaks = 1:7) +
+    scale_y_continuous(breaks = c(0, .5, 1)) +
+    coord_cartesian(ylim = c(0, 1)) +
+    labs(y = "cumulative proportion") +
+    theme_hc() +
+    scale_fill_gradient(low = canva_pal("Green fields")(4)[4],
+                        high = canva_pal("Green fields")(4)[1]) +
+    theme(axis.ticks.x = element_blank(),
+          plot.background = element_rect(fill = "grey92"),
+          legend.position = "none")
+
+# McElreath's convenience function
+logit <- function(x) log(x/(1-x))
+
+log_cum_odd_plot <- d %>%
+    group_by(response) %>% 
+    count() %>%
+    mutate(pr_k = n/nrow(d)) %>% 
+    ungroup() %>% 
+    mutate(cum_pr_k = cumsum(pr_k)) %>% 
+    filter(response < 7) %>% 
+    # We can do the logit() conversion right in ggplot2
+    ggplot(aes(x = response, y = logit(cum_pr_k), 
+               fill = response)) +
+    geom_line(color = canva_pal("Green fields")(4)[2]) +
+    geom_point(shape = 21, colour = "grey92", 
+               size = 2.5, stroke = 1) +
+    scale_x_continuous(breaks = 1:7) +
+    coord_cartesian(xlim = c(1, 7)) +
+    labs(y = "log-cumulative-odds") +
+    theme_hc() +
+    scale_fill_gradient(low = canva_pal("Green fields")(4)[4],
+                        high = canva_pal("Green fields")(4)[1]) +
+    theme(axis.ticks.x = element_blank(),
+          plot.background = element_rect(fill = "grey92"),
+          legend.position = "none")
+
+library(gridExtra)
+grid.arrange(hist_plot, cum_plot, log_cum_odd_plot, ncol=3)
+```
+
+
+
+```{r}
+d_plot <-
+    d %>%
+    group_by(response) %>% 
+    count() %>%
+    mutate(pr_k = n/nrow(d)) %>% 
+    ungroup() %>% 
+    mutate(cum_pr_k = cumsum(pr_k)) 
+
+ggplot(data = d_plot,
+       aes(x = response, y = cum_pr_k, 
+           color = cum_pr_k, fill = cum_pr_k)) +
+    geom_line(color = canva_pal("Green fields")(4)[1]) +
+    geom_point(shape = 21, colour = "grey92", 
+               size = 2.5, stroke = 1) +
+    geom_linerange(aes(ymin = 0, ymax = cum_pr_k),
+                   alpha = 1/2, color = canva_pal("Green fields")(4)[1]) +
+    # There are probably more elegant ways to do this part.
+    geom_linerange(data = . %>% 
+                       mutate(discrete_probability = ifelse(response == 1, cum_pr_k, cum_pr_k - pr_k)),
+                   aes(x = response + .025,
+                       ymin = ifelse(response == 1, 0, discrete_probability), 
+                       ymax = cum_pr_k),
+                   color = "black") +
+    geom_text(data = tibble(text = 1:7,
+                            response = seq(from = 1.25, to = 7.25, by = 1),
+                            cum_pr_k = d_plot$cum_pr_k - .065),
+              aes(label = text),
+              size = 4) +
+    scale_x_continuous(breaks = 1:7) +
+    scale_y_continuous(breaks = c(0, .5, 1)) +
+    coord_cartesian(ylim = c(0, 1)) +
+    labs(y = "cumulative proportion") +
+    theme_hc() +
+    scale_fill_gradient(low = canva_pal("Green fields")(4)[4],
+                        high = canva_pal("Green fields")(4)[1]) +
+    scale_color_gradient(low = canva_pal("Green fields")(4)[4],
+                         high = canva_pal("Green fields")(4)[1]) +
+    theme(axis.ticks.x = element_blank(),
+          plot.background = element_rect(fill = "grey92"),
+          legend.position = "none")
+```
+
+The model is defined as:
+
+$$\begin{eqnarray} { R }_{ i } & \sim  & \text{Ordered}\left( \mathbf{p} \right) \\ \text{logit} \left( \Pr \left( R_i \le k \right) \right) & = & \alpha_k  \end{eqnarray}$$
+
+```{r message=FALSE, cache=TRUE}
+# Here are our starting values, which we specify with the `inits` argument in brm()
+Inits <- list(`Intercept[1]` = -2,
+              `Intercept[2]` = -1,
+              `Intercept[3]` = 0,
+              `Intercept[4]` = 1,
+              `Intercept[5]` = 2,
+              `Intercept[6]` = 2.5)
+
+InitsList <-list(Inits, Inits)
+
+m11.1 <- 
+    brm(data = d, family = cumulative,
+        response ~ 1,
+        prior = c(set_prior("normal(0, 10)", class = "Intercept")),
+        iter = 2000, warmup = 1000, cores = 2, chains = 2,
+        inits = InitsList)  # Here we place our start values into brm()
+
+print(m11.1)
+```
+
+```{r}
+invlogit <- function(x) {1/(1+exp(-x))}
+
+m11.1 %>% 
+    fixef() %>% 
+    invlogit()
+```
+
+### 11.1.3. Adding predictor variables
+
+
+
+## References
+McElreath, R. (2016). *Statistical rethinking: A Bayesian course with examples in R and Stan.* Chapman & Hall/CRC Press.
+
+Kurz, A. S. (2018, March 9). *brms, ggplot2 and tidyverse code, by chapter*. Retrieved from https://goo.gl/JbvNTj

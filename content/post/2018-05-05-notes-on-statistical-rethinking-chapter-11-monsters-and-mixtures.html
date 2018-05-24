@@ -1,0 +1,223 @@
+---
+title: Notes on Statistical Rethinking (Chapter 11 - Monsters and Mixtures)
+author: José Roberto Ayala Solares
+date: '2018-05-05'
+slug: notes-on-statistical-rethinking-chapter-11-monsters-and-mixtures
+categories:
+  - StatisticalRethinking
+tags:
+  - bayesian
+  - notes
+summary: Notes for Chapter 10 of [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/)
+---
+
+
+
+<p>Mixture modeling help us transform our modeling to cope with the inconvenient realities of measurement, rather than transforming measurements to cope with the constraints of our models.</p>
+<div id="ordered-categorical-outcomes" class="section level2">
+<h2>11.1. Ordered categorical outcomes</h2>
+<blockquote>
+<p>It is very common in the social sciences, and occasional in the natural sciences, to have an outcome variable that is discrete, like a count, but in which the values merely indicate different ordered levels along some dimension. But unlike a count, the differences in value are not necessarily equal.</p>
+</blockquote>
+<blockquote>
+<p>An ordered categorical variable is just a multinomial prediction problem. But the constraint that the categories be ordered demands a special treatment. What we’d like is for any associated predictor variable, as it increases, to move predictions progressively through the categories in sequence. The conventional solution is to use a cumulative link function.</p>
+</blockquote>
+<blockquote>
+<p>By linking a linear model to cumulative probability, it is possible to guarantee the ordering of the outcomes.</p>
+</blockquote>
+<div id="example-moral-intuition" class="section level3">
+<h3>11.1.1. Example: Moral intuition</h3>
+<pre class="r"><code>library(rethinking)
+data(Trolley)
+d &lt;- Trolley
+
+rm(Trolley)
+detach(package:rethinking, unload = T)
+library(brms)</code></pre>
+<pre><code>## Warning: package &#39;brms&#39; was built under R version 3.4.4</code></pre>
+<pre><code>## Warning: package &#39;Rcpp&#39; was built under R version 3.4.4</code></pre>
+<pre class="r"><code>library(ggthemes)
+scales::show_col(canva_pal(&quot;Green fields&quot;)(4))</code></pre>
+<p><img src="/post/2018-05-05-notes-on-statistical-rethinking-chapter-11-monsters-and-mixtures_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
+</div>
+<div id="describing-an-ordered-distribution-with-intercepts" class="section level3">
+<h3>11.1.2. Describing an ordered distribution with intercepts</h3>
+<pre class="r"><code>library(tidyverse)</code></pre>
+<pre><code>## ── Attaching packages ──────────────────────────────────────────────────────────────────── tidyverse 1.2.1 ──</code></pre>
+<pre><code>## ✔ tibble  1.4.2     ✔ purrr   0.2.4
+## ✔ tidyr   0.7.2     ✔ dplyr   0.7.4
+## ✔ readr   1.1.1     ✔ stringr 1.3.0
+## ✔ tibble  1.4.2     ✔ forcats 0.2.0</code></pre>
+<pre><code>## ── Conflicts ─────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
+## ✖ tidyr::extract() masks rstan::extract()
+## ✖ dplyr::filter()  masks stats::filter()
+## ✖ dplyr::lag()     masks stats::lag()</code></pre>
+<pre class="r"><code>hist_plot &lt;- ggplot(data = d, aes(x = response, fill = ..x..)) +
+    geom_histogram(binwidth = 1/4, size = 0) +
+    scale_x_continuous(breaks = 1:7) +
+    theme_hc() +
+    scale_fill_gradient(low = canva_pal(&quot;Green fields&quot;)(4)[4],
+                        high = canva_pal(&quot;Green fields&quot;)(4)[1]) +
+    theme(axis.ticks.x = element_blank(),
+          plot.background = element_rect(fill = &quot;grey92&quot;),
+          legend.position = &quot;none&quot;)
+
+cum_plot &lt;- d %&gt;%
+    group_by(response) %&gt;% 
+    count() %&gt;%
+    mutate(pr_k = n/nrow(d)) %&gt;% 
+    ungroup() %&gt;% 
+    mutate(cum_pr_k = cumsum(pr_k)) %&gt;% 
+    ggplot(aes(x = response, y = cum_pr_k, 
+               fill = response)) +
+    geom_line(color = canva_pal(&quot;Green fields&quot;)(4)[2]) +
+    geom_point(shape = 21, colour = &quot;grey92&quot;, 
+               size = 2.5, stroke = 1) +
+    scale_x_continuous(breaks = 1:7) +
+    scale_y_continuous(breaks = c(0, .5, 1)) +
+    coord_cartesian(ylim = c(0, 1)) +
+    labs(y = &quot;cumulative proportion&quot;) +
+    theme_hc() +
+    scale_fill_gradient(low = canva_pal(&quot;Green fields&quot;)(4)[4],
+                        high = canva_pal(&quot;Green fields&quot;)(4)[1]) +
+    theme(axis.ticks.x = element_blank(),
+          plot.background = element_rect(fill = &quot;grey92&quot;),
+          legend.position = &quot;none&quot;)
+
+# McElreath&#39;s convenience function
+logit &lt;- function(x) log(x/(1-x))
+
+log_cum_odd_plot &lt;- d %&gt;%
+    group_by(response) %&gt;% 
+    count() %&gt;%
+    mutate(pr_k = n/nrow(d)) %&gt;% 
+    ungroup() %&gt;% 
+    mutate(cum_pr_k = cumsum(pr_k)) %&gt;% 
+    filter(response &lt; 7) %&gt;% 
+    # We can do the logit() conversion right in ggplot2
+    ggplot(aes(x = response, y = logit(cum_pr_k), 
+               fill = response)) +
+    geom_line(color = canva_pal(&quot;Green fields&quot;)(4)[2]) +
+    geom_point(shape = 21, colour = &quot;grey92&quot;, 
+               size = 2.5, stroke = 1) +
+    scale_x_continuous(breaks = 1:7) +
+    coord_cartesian(xlim = c(1, 7)) +
+    labs(y = &quot;log-cumulative-odds&quot;) +
+    theme_hc() +
+    scale_fill_gradient(low = canva_pal(&quot;Green fields&quot;)(4)[4],
+                        high = canva_pal(&quot;Green fields&quot;)(4)[1]) +
+    theme(axis.ticks.x = element_blank(),
+          plot.background = element_rect(fill = &quot;grey92&quot;),
+          legend.position = &quot;none&quot;)
+
+library(gridExtra)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;gridExtra&#39;</code></pre>
+<pre><code>## The following object is masked from &#39;package:dplyr&#39;:
+## 
+##     combine</code></pre>
+<pre class="r"><code>grid.arrange(hist_plot, cum_plot, log_cum_odd_plot, ncol=3)</code></pre>
+<p><img src="/post/2018-05-05-notes-on-statistical-rethinking-chapter-11-monsters-and-mixtures_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
+<pre class="r"><code>d_plot &lt;-
+    d %&gt;%
+    group_by(response) %&gt;% 
+    count() %&gt;%
+    mutate(pr_k = n/nrow(d)) %&gt;% 
+    ungroup() %&gt;% 
+    mutate(cum_pr_k = cumsum(pr_k)) 
+
+ggplot(data = d_plot,
+       aes(x = response, y = cum_pr_k, 
+           color = cum_pr_k, fill = cum_pr_k)) +
+    geom_line(color = canva_pal(&quot;Green fields&quot;)(4)[1]) +
+    geom_point(shape = 21, colour = &quot;grey92&quot;, 
+               size = 2.5, stroke = 1) +
+    geom_linerange(aes(ymin = 0, ymax = cum_pr_k),
+                   alpha = 1/2, color = canva_pal(&quot;Green fields&quot;)(4)[1]) +
+    # There are probably more elegant ways to do this part.
+    geom_linerange(data = . %&gt;% 
+                       mutate(discrete_probability = ifelse(response == 1, cum_pr_k, cum_pr_k - pr_k)),
+                   aes(x = response + .025,
+                       ymin = ifelse(response == 1, 0, discrete_probability), 
+                       ymax = cum_pr_k),
+                   color = &quot;black&quot;) +
+    geom_text(data = tibble(text = 1:7,
+                            response = seq(from = 1.25, to = 7.25, by = 1),
+                            cum_pr_k = d_plot$cum_pr_k - .065),
+              aes(label = text),
+              size = 4) +
+    scale_x_continuous(breaks = 1:7) +
+    scale_y_continuous(breaks = c(0, .5, 1)) +
+    coord_cartesian(ylim = c(0, 1)) +
+    labs(y = &quot;cumulative proportion&quot;) +
+    theme_hc() +
+    scale_fill_gradient(low = canva_pal(&quot;Green fields&quot;)(4)[4],
+                        high = canva_pal(&quot;Green fields&quot;)(4)[1]) +
+    scale_color_gradient(low = canva_pal(&quot;Green fields&quot;)(4)[4],
+                         high = canva_pal(&quot;Green fields&quot;)(4)[1]) +
+    theme(axis.ticks.x = element_blank(),
+          plot.background = element_rect(fill = &quot;grey92&quot;),
+          legend.position = &quot;none&quot;)</code></pre>
+<p><img src="/post/2018-05-05-notes-on-statistical-rethinking-chapter-11-monsters-and-mixtures_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+<p>The model is defined as:</p>
+<p><span class="math display">\[\begin{eqnarray} { R }_{ i } &amp; \sim  &amp; \text{Ordered}\left( \mathbf{p} \right) \\ \text{logit} \left( \Pr \left( R_i \le k \right) \right) &amp; = &amp; \alpha_k  \end{eqnarray}\]</span></p>
+<pre class="r"><code># Here are our starting values, which we specify with the `inits` argument in brm()
+Inits &lt;- list(`Intercept[1]` = -2,
+              `Intercept[2]` = -1,
+              `Intercept[3]` = 0,
+              `Intercept[4]` = 1,
+              `Intercept[5]` = 2,
+              `Intercept[6]` = 2.5)
+
+InitsList &lt;-list(Inits, Inits)
+
+m11.1 &lt;- 
+    brm(data = d, family = cumulative,
+        response ~ 1,
+        prior = c(set_prior(&quot;normal(0, 10)&quot;, class = &quot;Intercept&quot;)),
+        iter = 2000, warmup = 1000, cores = 2, chains = 2,
+        inits = InitsList)  # Here we place our start values into brm()
+
+print(m11.1)</code></pre>
+<pre><code>##  Family: cumulative 
+##   Links: mu = logit; disc = identity 
+## Formula: response ~ 1 
+##    Data: d (Number of observations: 9930) 
+## Samples: 2 chains, each with iter = 2000; warmup = 1000; thin = 1; 
+##          total post-warmup samples = 2000
+##     ICs: LOO = NA; WAIC = NA; R2 = NA
+##  
+## Population-Level Effects: 
+##              Estimate Est.Error l-95% CI u-95% CI Eff.Sample Rhat
+## Intercept[1]    -1.92      0.03    -1.98    -1.86       1528 1.00
+## Intercept[2]    -1.27      0.02    -1.31    -1.22       2000 1.00
+## Intercept[3]    -0.72      0.02    -0.76    -0.68       2000 1.00
+## Intercept[4]     0.25      0.02     0.21     0.29       2000 1.00
+## Intercept[5]     0.89      0.02     0.85     0.94       2000 1.00
+## Intercept[6]     1.77      0.03     1.71     1.83       2000 1.00
+## 
+## Samples were drawn using sampling(NUTS). For each parameter, Eff.Sample 
+## is a crude measure of effective sample size, and Rhat is the potential 
+## scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
+<pre class="r"><code>invlogit &lt;- function(x) {1/(1+exp(-x))}
+
+m11.1 %&gt;% 
+    fixef() %&gt;% 
+    invlogit()</code></pre>
+<pre><code>##               Estimate Est.Error   2.5%ile  97.5%ile
+## Intercept[1] 0.1282493 0.5075149 0.1218421 0.1350510
+## Intercept[2] 0.2196851 0.5061199 0.2117017 0.2281557
+## Intercept[3] 0.3276420 0.5053175 0.3188293 0.3371890
+## Intercept[4] 0.5617552 0.5050194 0.5522268 0.5714108
+## Intercept[5] 0.7090390 0.5056345 0.7002370 0.7181145
+## Intercept[6] 0.8545451 0.5070798 0.8474365 0.8612700</code></pre>
+</div>
+<div id="adding-predictor-variables" class="section level3">
+<h3>11.1.3. Adding predictor variables</h3>
+</div>
+</div>
+<div id="references" class="section level2">
+<h2>References</h2>
+<p>McElreath, R. (2016). <em>Statistical rethinking: A Bayesian course with examples in R and Stan.</em> Chapman &amp; Hall/CRC Press.</p>
+<p>Kurz, A. S. (2018, March 9). <em>brms, ggplot2 and tidyverse code, by chapter</em>. Retrieved from <a href="https://goo.gl/JbvNTj" class="uri">https://goo.gl/JbvNTj</a></p>
+</div>
