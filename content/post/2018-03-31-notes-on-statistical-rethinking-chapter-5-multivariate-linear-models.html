@@ -30,6 +30,7 @@ d &lt;- WaffleDivorce
 rm(WaffleDivorce)
 detach(package:rethinking, unload = T)
 library(brms)</code></pre>
+<pre><code>## Warning: package &#39;brms&#39; was built under R version 3.4.4</code></pre>
 <pre><code>## Warning: package &#39;Rcpp&#39; was built under R version 3.4.4</code></pre>
 <pre class="r"><code>library(tidyverse)
 
@@ -52,7 +53,7 @@ glimpse(d)</code></pre>
 <p>Multivariate models ask the following question: <strong>What is the predictive value of a variable, once I already know all of the other predictor variables?</strong></p>
 <div id="multivariate-notation" class="section level3">
 <h3>5.1.1. Multivariate notation</h3>
-<p>Consider the following multivariate model where <span class="math inline">\(R_i\)</span> is marriage rate (<code>Marriage.s</code>), <span class="math inline">\(A_i\)</span> is median age at marriage (`MedianAgeMarriage.s) and <span class="math inline">\(D_i\)</span> is divorce rate:</p>
+<p>Consider the following multivariate model where <span class="math inline">\(R_i\)</span> is marriage rate (<code>Marriage.s</code>), <span class="math inline">\(A_i\)</span> is median age at marriage (<code>MedianAgeMarriage.s</code>) and <span class="math inline">\(D_i\)</span> is divorce rate:</p>
 <p><span class="math display">\[\begin{eqnarray} { D }_{ i } &amp; \sim  &amp; \text{Normal}({ \mu  }_{ i },\sigma ) &amp; \text{&lt;- likelihood } \\ { \mu  }_{ i } &amp; = &amp; \alpha +{ \beta  }_{ R }{ R }_{ i }+{ \beta  }_{ A}{ A }_{ i } &amp; \text{&lt;- linear model } \\ \alpha  &amp; \sim  &amp; \text{Normal}(10,10) &amp; \text{&lt;- }\alpha \text{ prior } \\ { \beta  }_{ R } &amp; \sim  &amp; \text{Normal}(0,1) &amp; \text{&lt;- }{ \beta  }_{ R }\text{ prior } \\ { \beta  }_{ A } &amp; \sim  &amp; \text{Normal}(0,1) &amp; \text{&lt;- }{ \beta  }_{ A } \text{ prior} \\ \sigma  &amp; \sim  &amp; \text{Cauchy}(0,1) &amp; \text{&lt;- }\sigma \text{ prior } \end{eqnarray}\]</span></p>
 <p>What does it mean <span class="math inline">\({ \mu }_{ i } = \alpha +{ \beta }_{ R }{ R }_{ i }+{ \beta }_{ A}{ A }_{ i }\)</span>? It can be interpreted as: <em>A State’s divorce rate can be a function of its marriage rate <strong>or</strong> its median age at marriage</em>. The “or” indicates independent associations, which may be purely statistical or rather causal.</p>
 </div>

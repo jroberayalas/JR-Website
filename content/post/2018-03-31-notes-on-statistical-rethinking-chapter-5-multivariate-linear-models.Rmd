@@ -34,7 +34,7 @@ glimpse(d)
 Multivariate models ask the following question: **What is the predictive value of a variable, once I already know all of the other predictor variables?**
 
 ### 5.1.1. Multivariate notation
-Consider the following multivariate model where $R_i$ is marriage rate (`Marriage.s`), $A_i$ is median age at marriage (`MedianAgeMarriage.s) and $D_i$ is divorce rate:
+Consider the following multivariate model where $R_i$ is marriage rate (`Marriage.s`), $A_i$ is median age at marriage (`MedianAgeMarriage.s`) and $D_i$ is divorce rate:
 
 $$\begin{eqnarray} { D }_{ i } & \sim  & \text{Normal}({ \mu  }_{ i },\sigma ) & \text{<- likelihood } \\ { \mu  }_{ i } & = & \alpha +{ \beta  }_{ R }{ R }_{ i }+{ \beta  }_{ A}{ A }_{ i } & \text{<- linear model } \\ \alpha  & \sim  & \text{Normal}(10,10) & \text{<- }\alpha \text{ prior } \\ { \beta  }_{ R } & \sim  & \text{Normal}(0,1) & \text{<- }{ \beta  }_{ R }\text{ prior } \\ { \beta  }_{ A } & \sim  & \text{Normal}(0,1) & \text{<- }{ \beta  }_{ A } \text{ prior} \\ \sigma  & \sim  & \text{Cauchy}(0,1) & \text{<- }\sigma \text{ prior } \end{eqnarray}$$
 
