@@ -1,0 +1,17 @@
+base
+ggplot2
+StanHeaders
+rstan
+Rcpp
+brms
+ggthemes
+tidyverse
+tibble
+tidyr
+readr
+purrr
+dplyr
+stringr
+forcats
+bindrcpp
+gridExtra

@@ -162,9 +162,10 @@ detach(package:rethinking, unload = T)
 
 # Load brms
 library(brms)</code></pre>
+<pre><code>## Warning: package &#39;brms&#39; was built under R version 3.4.4</code></pre>
 <pre><code>## Loading required package: Rcpp</code></pre>
 <pre><code>## Warning: package &#39;Rcpp&#39; was built under R version 3.4.4</code></pre>
-<pre><code>## Loading &#39;brms&#39; package (version 2.1.0). Useful instructions
+<pre><code>## Loading &#39;brms&#39; package (version 2.2.0). Useful instructions
 ## can be found by typing help(&#39;brms&#39;). A more detailed introduction
 ## to the package is available through vignette(&#39;brms_overview&#39;).
 ## Run theme_set(theme_default()) to use the default bayesplot theme.</code></pre>
@@ -191,11 +192,11 @@ summary(m4.1, prob = 0.89)</code></pre>
 ##  
 ## Population-Level Effects: 
 ##           Estimate Est.Error l-89% CI u-89% CI Eff.Sample Rhat
-## Intercept   154.60      0.41   153.93   155.27       3461 1.00
+## Intercept   154.61      0.41   153.95   155.27       3368 1.00
 ## 
 ## Family Specific Parameters: 
 ##       Estimate Est.Error l-89% CI u-89% CI Eff.Sample Rhat
-## sigma     7.75      0.29     7.29     8.24       3574 1.00
+## sigma     7.76      0.29     7.30     8.24       3692 1.00
 ## 
 ## Samples were drawn using sampling(NUTS). For each parameter, Eff.Sample 
 ## is a crude measure of effective sample size, and Rhat is the potential 
@@ -209,9 +210,9 @@ post &lt;- posterior_samples(m4.1)
 
 # Summarise the samples
 t(apply(post[ , 1:2], 2, quantile, probs = c(.5, .055, .945)))</code></pre>
-<pre><code>##                  50%      5.5%      94.5%
-## b_Intercept 154.6028 153.93386 155.267376
-## sigma         7.7409   7.28751   8.235681</code></pre>
+<pre><code>##                    50%       5.5%      94.5%
+## b_Intercept 154.601479 153.951119 155.268724
+## sigma         7.749569   7.299051   8.237449</code></pre>
 <pre class="r"><code># Using the tidyverse for summarising
 post %&gt;%
   select(-lp__) %&gt;% 
@@ -226,12 +227,12 @@ post %&gt;%
 ##   parameter     mean    SD `5.5_percentile` `94.5_percentile`
 ##   &lt;chr&gt;        &lt;dbl&gt; &lt;dbl&gt;            &lt;dbl&gt;             &lt;dbl&gt;
 ## 1 b_Intercept 155.   0.410           154.              155.  
-## 2 sigma         7.75 0.290             7.29              8.24</code></pre>
+## 2 sigma         7.76 0.290             7.30              8.24</code></pre>
 <pre class="r"><code># The rethinking package has already a function to summarise the samples
 rethinking::precis(post[ , 1:2])</code></pre>
 <pre><code>##               Mean StdDev  |0.89  0.89|
-## b_Intercept 154.60   0.41 153.97 155.30
-## sigma         7.75   0.29   7.24   8.19</code></pre>
+## b_Intercept 154.61   0.41 153.98 155.28
+## sigma         7.76   0.29   7.32   8.26</code></pre>
 </div>
 </div>
 <div id="adding-a-predictor" class="section level2">
