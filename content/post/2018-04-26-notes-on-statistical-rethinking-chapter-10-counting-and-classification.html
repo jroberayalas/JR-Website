@@ -13,6 +13,7 @@ summary: Notes for Chapter 10 of [Statistical Rethinking](http://xcelab.net/rm/s
 
 
 
+<p>{{% alert note %}} A fundamental difficulty with these models is that parameters are on a different scale, typically log-odds (for binomial) or log-rate (for Poisson), than the outcome variable they describe. {{% /alert %}}</p>
 <div id="binomial-regression" class="section level2">
 <h2>10.1. Binomial regression</h2>
 <blockquote>
@@ -998,7 +999,7 @@ pareto_k_table(l_m10.6)</code></pre>
 </div>
 </div>
 <div id="fitting-binomial-regressions-with-glm" class="section level3">
-<h3>10.1.4. Fitting binomial regressions with `glm</h3>
+<h3>10.1.4. Fitting binomial regressions with <code>glm</code></h3>
 <pre class="r"><code># outcome and predictor almost perfectly associated
 y &lt;- c(rep(0, 10), rep(1, 10))
 x &lt;- c(rep(-1, 9), rep(1, 11))
@@ -1470,8 +1471,8 @@ m10.15 &lt;-
 <pre><code>## # A tibble: 2 x 5
 ##   key         Mean StdDev    LL    UL
 ##   &lt;fct&gt;      &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
-## 1 lambda_old 1.19   0.190 0.840 1.59 
-## 2 lambda_new 0.460  0.120 0.260 0.730</code></pre>
+## 1 lambda_old 1.20   0.200 0.850 1.63 
+## 2 lambda_new 0.460  0.120 0.250 0.730</code></pre>
 </div>
 </div>
 <div id="other-count-regressions" class="section level2">
@@ -1479,14 +1480,14 @@ m10.15 &lt;-
 <div id="multinomial" class="section level3">
 <h3>10.3.1. Multinomial</h3>
 <p>{{% alert note %}} When more than two types of unordered events are possible, and the probability of each type of event is constant across trials, then the maximum entropy distribution is the multinomial distribution. {{% /alert %}}</p>
-<p><span class="math display">\[\Pr\left( { { y }_{ 1 }\dots, { y }_{ K } }|{ n,{ { p }_{ 1 }\dots, { p }_{ K } } } \right) =\frac { n! }{ \prod _{ i }{ { y }_{ i }! }  } \prod _{ i=1 }^{ K }{ { p }_{ i }^{ { y }_{ i } } } \]</span></p>
+<p><span class="math display">\[\Pr\left( { { y }_{ 1 }, \dots, { y }_{ K } }|{ n,{ { p }_{ 1 }, \dots, { p }_{ K } } } \right) =\frac { n! }{ \prod _{ i }{ { y }_{ i }! }  } \prod _{ i=1 }^{ K }{ { p }_{ i }^{ { y }_{ i } } } \]</span></p>
 <blockquote>
 <p>A model built on a multinomial distribution may also be called a categorical regression, usually when each event is isolated on a single row, like with logistic regression. In machine learning, this model type is sometimes known as the <strong>maximum entropy classifier</strong>.</p>
 </blockquote>
 <div id="explicit-multinomial-models" class="section level4">
 <h4>10.3.1.1. Explicit multinomial models</h4>
 <p>This approach uses the multinomial likelihood and a generalization of the logit link (the multinomial logit).</p>
-<p>The multinomial logit is a link function takes a vector of scores, one for each of K event types, and computes the probability of a particular type of event k as:</p>
+<p>The multinomial logit is a link function takes a vector of scores, one for each of <span class="math inline">\(K\)</span> event types, and computes the probability of a particular type of event <span class="math inline">\(k\)</span> as:</p>
 <p><span class="math display">\[\Pr\left( { k }|{ { { s }_{ 1 }\dots { s }_{ K } } } \right) =\frac { exp\left( { s }_{ k } \right)  }{ \sum _{ i=1 }^{ K }{ exp\left( { s }_{ i } \right)  }  } \]</span></p>
 <blockquote>
 <p>Combined with this conventional link, this type of GLM is often called multinomial logistic regression.</p>
