@@ -613,7 +613,7 @@ m7.5_factor <-
 ```{r}
 # plot(marginal_effects(m7.4_factor))
 
-# marginal_effects(b7.5_factor, probs = c(.25, .75))
+# marginal_effects(m7.5_factor, probs = c(.25, .75))
 
 plot(marginal_effects(m7.5_factor,
                       effects = "rugged:cont_africa", 

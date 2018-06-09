@@ -27,6 +27,7 @@ d &lt;- rugged
 
 detach(package:rethinking, unload = T)
 library(brms)</code></pre>
+<pre><code>## Warning: package &#39;brms&#39; was built under R version 3.4.4</code></pre>
 <pre><code>## Warning: package &#39;Rcpp&#39; was built under R version 3.4.4</code></pre>
 <pre class="r"><code>rm(rugged)
 
@@ -154,8 +155,8 @@ dd %&gt;%
 ## m7.3 - m7.4  63.27 14.53</code></pre>
 <pre class="r"><code>loo(m7.3, m7.4)</code></pre>
 <pre><code>##              LOOIC    SE
-## m7.3        539.51 12.92
-## m7.4        476.25 14.82
+## m7.3        539.52 12.92
+## m7.4        476.26 14.82
 ## m7.3 - m7.4  63.26 14.53</code></pre>
 <pre class="r"><code>nd &lt;- 
     tibble(rugged = rep(seq(from = 0,
@@ -287,6 +288,39 @@ compare_waic &lt;- function (..., sort = &quot;WAIC&quot;, func = &quot;WAIC&quo
 }
 
 compare_waic(m7.3, m7.4, m7.5)</code></pre>
+<pre><code>## Warning: Accessing p_waic using &#39;$&#39; is deprecated and will be removed in
+## a future release. Please extract the p_waic estimate from the &#39;estimates&#39;
+## component instead.
+
+## Warning: Accessing p_waic using &#39;$&#39; is deprecated and will be removed in
+## a future release. Please extract the p_waic estimate from the &#39;estimates&#39;
+## component instead.
+
+## Warning: Accessing p_waic using &#39;$&#39; is deprecated and will be removed in
+## a future release. Please extract the p_waic estimate from the &#39;estimates&#39;
+## component instead.</code></pre>
+<pre><code>## Warning: Accessing se_waic using &#39;$&#39; is deprecated and will be removed in
+## a future release. Please extract the se_waic estimate from the &#39;estimates&#39;
+## component instead.
+
+## Warning: Accessing se_waic using &#39;$&#39; is deprecated and will be removed in
+## a future release. Please extract the se_waic estimate from the &#39;estimates&#39;
+## component instead.
+
+## Warning: Accessing se_waic using &#39;$&#39; is deprecated and will be removed in
+## a future release. Please extract the se_waic estimate from the &#39;estimates&#39;
+## component instead.</code></pre>
+<pre><code>## Warning: Accessing waic using &#39;$&#39; is deprecated and will be removed in
+## a future release. Please extract the waic estimate from the &#39;estimates&#39;
+## component instead.
+
+## Warning: Accessing waic using &#39;$&#39; is deprecated and will be removed in
+## a future release. Please extract the waic estimate from the &#39;estimates&#39;
+## component instead.
+
+## Warning: Accessing waic using &#39;$&#39; is deprecated and will be removed in
+## a future release. Please extract the waic estimate from the &#39;estimates&#39;
+## component instead.</code></pre>
 <pre><code>##       WAIC pWAIC dWAIC weight    SE   dSE
 ## m7.5 469.2   5.0   0.0   0.97 14.60    NA
 ## m7.4 476.2   4.2   7.0   0.03 14.81  6.05
@@ -618,7 +652,7 @@ m7.5_factor &lt;-
       chains = 4, iter = 2000, warmup = 1000, cores = 4)</code></pre>
 <pre class="r"><code># plot(marginal_effects(m7.4_factor))
 
-# marginal_effects(b7.5_factor, probs = c(.25, .75))
+# marginal_effects(m7.5_factor, probs = c(.25, .75))
 
 plot(marginal_effects(m7.5_factor,
                       effects = &quot;rugged:cont_africa&quot;, 
