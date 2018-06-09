@@ -152,6 +152,8 @@ The model is defined as:
 
 $$\begin{eqnarray} { R }_{ i } & \sim  & \text{Ordered}\left( \mathbf{p} \right) \\ \text{logit} \left( \Pr \left( R_i \le k \right) \right) & = & \alpha_k  \end{eqnarray}$$
 
+> Notice that the cumulative logit of the largest response is infinity.
+
 ```{r message=FALSE, cache=TRUE}
 # Here are our starting values, which we specify with the `inits` argument in brm()
 Inits <- list(`Intercept[1]` = -2,
@@ -183,7 +185,512 @@ m11.1 %>%
 
 ### 11.1.3. Adding predictor variables
 
+> To include predictor variables, we define the log-cumulative-odds of each response $k$ as a sum of its intercept $\alpha_k$ and a typical linear model $\phi_i$.
 
+$$\begin{eqnarray} { R }_{ i } & \sim  & \text{Ordered}\left( \mathbf{p} \right) \\ \text{logit} \left( \Pr \left( R_i \le k \right) \right) & = & \alpha_k - \phi_i \end{eqnarray}$$
+
+where $\phi_i = \beta x_i$
+
+> Why is the linear model $\phi$ subtracted from each intercept? Because if we decrease the log-cumulative odds of every outcome value $k$ below the maximum, this necessarily shifts probability mass upwards towards higher outcome values.
+
+```{r}
+# First, we needed to specify the logistic() function, which is apart of the dordlogit() function
+logistic <- function(x) {
+    p <- 1 / (1 + exp(-x))
+    p <- ifelse(x == Inf, 1, p) 
+    p
+}
+
+# Now we get down to it
+dordlogit <- function(x, phi, a, log = FALSE) {
+    a  <- c(as.numeric(a), Inf)
+    p  <- logistic(a[x] - phi)
+    na <- c(-Inf, a)
+    np <- logistic(na[x] - phi)
+    p  <- p - np
+    if (log == TRUE) p <- log(p)
+    p
+}
+```
+
+```{r}
+pk <- dordlogit(1:7, 0, fixef(m11.1)[, 1])
+pk
+```
+
+```{r}
+pk <- dordlogit(1:7, 0.5, fixef(m11.1)[, 1])
+pk
+```
+
+```{r message=FALSE, cache=TRUE}
+# Start values for b11.2
+Inits <- list(`Intercept[1]` = -1.9,
+              `Intercept[2]` = -1.2,
+              `Intercept[3]` = -0.7,
+              `Intercept[4]` = 0.2,
+              `Intercept[5]` = 0.9,
+              `Intercept[6]` = 1.8,
+              action = 0,
+              intention = 0,
+              contact = 0)
+
+m11.2 <- 
+    brm(data = d, family = cumulative,
+        response ~ 1 + action + intention + contact,
+        prior = c(set_prior("normal(0, 10)", class = "Intercept"),
+                  set_prior("normal(0, 10)", class = "b")),
+        iter = 2000, warmup = 1000, cores = 2, chains = 2,
+        inits = list(Inits, Inits))
+
+# Start values for b11.3
+Inits <- list(`Intercept[1]` = -1.9,
+              `Intercept[2]` = -1.2,
+              `Intercept[3]` = -0.7,
+              `Intercept[4]` = 0.2,
+              `Intercept[5]` = 0.9,
+              `Intercept[6]` = 1.8,
+              action = 0,
+              intention = 0,
+              contact = 0,
+              `action:intention` = 0,
+              `contact:intention` = 0)
+
+m11.3 <- 
+    brm(data = d, family = cumulative,
+        response ~ 1 + action + intention + contact + action:intention + contact:intention,
+        prior = c(set_prior("normal(0, 10)", class = "Intercept"),
+                  set_prior("normal(0, 10)", class = "b")),
+        iter = 2000, warmup = 1000, cores = 2, chains = 2,
+        inits = list(Inits, Inits))
+```
+
+```{r}
+library(broom)
+
+tidy(m11.1) %>% mutate(model = "m11.1") %>% 
+    bind_rows(tidy(m11.2) %>% mutate(model = "m11.2")) %>% 
+    bind_rows(tidy(m11.3) %>% mutate(model = "m11.3")) %>% 
+    select(model, term, estimate) %>% 
+    filter(term != "lp__") %>% 
+    complete(term = distinct(., term), model) %>% 
+    mutate(estimate = round(estimate, digits = 2)) %>%
+    spread(key = model, value = estimate) %>% 
+    slice(c(6:11, 1, 4, 3, 2, 5))  # Here we indicate the order we'd like the rows in
+```
+
+```{r}
+loo::compare(waic(m11.1), waic(m11.2), waic(m11.3))
+```
+
+```{r}
+nd <-
+  tibble(action = 0,
+         contact = 0, 
+         intention = 0:1)
+
+max_iter <- 100
+
+fitted(m11.3, 
+        newdata = nd, 
+        subset = 1:max_iter,
+        summary = F) %>% 
+  as_tibble() %>% 
+  # We convert the data to the long format
+  gather() %>%
+  # We need an variable to index which posterior iteration we're working with
+  mutate(iter = rep(1:max_iter, times = 14)) %>%
+  # This step isn’t technically necessary, but I prefer my iter index at the far left.
+  select(iter, everything()) %>% 
+  # Here we extract the `intention` and `response` information out of the `key` vector and spread it into two vectors.
+  separate(key, into = c("intention", "rating")) %>% 
+  # That step produced two character vectors. They’ll be more useful as numbers
+  mutate(intention = intention %>% as.double(),
+         rating =  rating %>% as.double()) %>%
+  # Here we convert `intention` into its proper 0:1 metric
+  mutate(intention = intention -1) %>%
+  # This isn't necessary, but it helps me understand exactly what metric the values are currently in
+  rename(pk = value) %>% 
+  # This step is based on McElreath's R code 11.10 on page 338
+  mutate(`pk:rating` = pk*rating) %>% 
+  # I’m not sure how to succinctly explain this. You’re just going to have to trust me.
+  group_by(iter, intention) %>% 
+  # This is very important for the next step.
+  arrange(iter, intention, rating) %>% 
+  # Here we take our `pk` values and make culmulative sums. Why? Take a long hard look at Figure 11.2. 
+  mutate(probability = cumsum(pk)) %>% 
+  # `rating == 7` is unnecessary. These `probability` values are by definition 1.
+  filter(rating < 7) %>% 
+  
+  ggplot(aes(x = intention, 
+             y = probability, 
+             color = probability)) +
+  geom_line(aes(group = interaction(iter, rating)),
+            alpha = 1/10) +
+  # Note how we made a new data object for geom_text()
+  geom_text(data = tibble(text        = 1:7,
+                          intention   = seq(from = .9, to = .1, length.out = 7),
+                          probability = c(.05, .12, .20, .35, .53, .71, .87)),
+            aes(label = text),
+            size = 3) +
+  scale_x_continuous(breaks = 0:1) +
+  scale_y_continuous(breaks = c(0, .5, 1)) +
+  coord_cartesian(ylim = 0:1) +
+  labs(subtitle = "action = 0,\ncontact = 0",
+       x = "intention") +
+  theme_hc() +
+  scale_color_gradient(low = canva_pal("Green fields")(4)[4],
+                       high = canva_pal("Green fields")(4)[1]) +
+  theme(plot.background = element_rect(fill = "grey92"),
+        legend.position = "none")
+```
+
+```{r}
+make_data_for_an_alternative_fiture <- function(action, contact, max_iter){
+  
+  nd <-
+    tibble(action = action,
+           contact = contact, 
+           intention = 0:1)
+  
+  max_iter <- max_iter
+  
+  fitted(m11.3, 
+         newdata = nd, 
+         subset = 1:max_iter,
+         summary = F) %>% 
+    as_tibble() %>%
+    gather() %>%
+    mutate(iter = rep(1:max_iter, times = 14)) %>%
+    select(iter, everything()) %>% 
+    separate(key, into = c("intention", "rating")) %>% 
+    mutate(intention = intention %>% as.double(),
+           rating =  rating %>% as.double()) %>%
+    mutate(intention = intention -1) %>%
+    rename(pk = value) %>% 
+    mutate(`pk:rating` = pk*rating) %>% 
+    group_by(iter, intention) %>% 
+    
+    # Everything above this point is identical to the previous custom function.
+    # All we do is replace the last few lines with this one line of code. 
+    summarise(mean_rating = sum(`pk:rating`))
+}
+```
+
+```{r}
+# Alternative to Figure 11.3.a
+make_data_for_an_alternative_fiture(action = 0, 
+                                    contact = 0, 
+                                    max_iter = 100) %>% 
+  
+  ggplot(aes(x = intention, y = mean_rating, group = iter)) +
+  geom_line(alpha = 1/10, color = canva_pal("Green fields")(4)[1]) +
+  scale_x_continuous(breaks = 0:1) +
+  scale_y_continuous(breaks = 1:7) +
+  coord_cartesian(ylim = 1:7) +
+  labs(subtitle = "action = 0,\ncontact = 0",
+       x = "intention",
+       y = "response") +
+  theme_hc() +
+  theme(plot.background = element_rect(fill = "grey92"),
+        legend.position = "none")
+```
+
+```{r}
+# Alternative to Figure 11.3.b
+make_data_for_an_alternative_fiture(action = 1, 
+                                    contact = 0, 
+                                    max_iter = 100) %>% 
+  
+ ggplot(aes(x = intention, y = mean_rating, group = iter)) +
+  geom_line(alpha = 1/10, color = canva_pal("Green fields")(4)[1]) +
+  scale_x_continuous(breaks = 0:1) +
+  scale_y_continuous(breaks = 1:7) +
+  coord_cartesian(ylim = 1:7) +
+  labs(subtitle = "action = 1,\ncontact = 0",
+       x = "intention",
+       y = "response") +
+  theme_hc() +
+  theme(plot.background = element_rect(fill = "grey92"),
+        legend.position = "none")
+```
+
+```{r}
+# Alternative to Figure 11.3.c
+make_data_for_an_alternative_fiture(action = 0, 
+                                    contact = 1, 
+                                    max_iter = 100) %>% 
+  
+  ggplot(aes(x = intention, y = mean_rating, group = iter)) +
+  geom_line(alpha = 1/10, color = canva_pal("Green fields")(4)[1]) +
+  scale_x_continuous(breaks = 0:1) +
+  scale_y_continuous(breaks = 1:7) +
+  coord_cartesian(ylim = 1:7) +
+  labs(subtitle = "action = 0,\ncontact = 1",
+       x = "intention",
+       y = "response") +
+  theme_hc() +
+  theme(plot.background = element_rect(fill = "grey92"),
+        legend.position = "none")
+```
+
+## 11.2. Zero-inflated outcomes
+
+> Very often, the things we can measure are not emissions from any pure process. Instead, they are mixtures of multiple processes. Whenever there are different causes for the same observation, then a mixture model may be useful. A mixture model uses more than one simple probability distribution to model a mixture of causes. In effect, these models use more than one likelihood for the same outcome variable.
+
+{{% alert note %}}
+Count variables are especially prone to needing a mixture treatment. The reason is that a count of zero can often arise more than one way. A “zero” means that nothing happened, and nothing can happen either because the rate of events is low or rather because the process that generates events failed to get started.
+{{% /alert %}}
+
+### 11.2.1. Example: Zero-inflated Poisson
+
+A zero-inflated Poisson regression takes the form:
+
+$$\begin{eqnarray} { y }_{ i } & \sim  & \text{ZIPoisson}\left( p_i, \lambda_i \right) \\ \text{logit} \left( p_i \right) & = & \alpha_p + \beta_p x_i \\ \text{log} \left( \lambda_i \right) & = & \alpha_\lambda + \beta_\lambda x_i  \end{eqnarray}$$
+
+```{r}
+# define parameters
+prob_drink <- 0.2  # 20% of days
+rate_work  <- 1    # average 1 manuscript per day
+
+# sample one year of production
+N <- 365
+
+# simulate days monks drink
+set.seed(0.2)
+drink <- rbinom(N, 1, prob_drink)
+
+# simulate manuscripts completed
+y <- (1 - drink)*rpois(N, rate_work)
+```
+
+```{r}
+d <-
+  tibble(Y = y) %>%
+  arrange(Y) %>% 
+  mutate(zeros = c(rep("zeros_drink", times = sum(drink)),
+                   rep("zeros_work",  times = sum(y == 0 & drink == 0)),
+                   rep("nope",        times = N - sum(y == 0)))) 
+  
+  ggplot(data = d, aes(x = Y)) +
+  geom_histogram(aes(fill = zeros),
+                 binwidth = 1, color = "grey92") +
+  scale_fill_manual(values = c(canva_pal("Green fields")(4)[1], 
+                               canva_pal("Green fields")(4)[2], 
+                               canva_pal("Green fields")(4)[1])) +
+  xlab("Manuscripts completed") +
+  theme_hc() +
+  theme(plot.background = element_rect(fill = "grey92"),
+        legend.position = "none")
+```
+
+```{r message=FALSE, cache=TRUE}
+m11.4 <- 
+    brm(data = d, family = zero_inflated_poisson(),
+        Y ~ 1,
+        prior = c(set_prior("normal(0, 10)", class = "Intercept"),
+                  # This is the brms default. See below.
+                  set_prior("beta(1, 1)", class = "zi")),
+        cores = 4)
+
+print(m11.4)
+```
+
+{{% alert note %}}
+`zi` in brms corresponds to the probability metric $p_i$.
+{{% /alert %}}
+
+## 11.3. Over-dispersed outcomes
+
+> One symptom that something important has been omitted from a count model is over-dispersion. When the observed variance exceeds its theoretical value, after conditioning on all the predictor variables, this implies that some omitted variable is producing additional dispersion in the observed counts.
+
+> Ignoring over-dispersion can lead to all of the same problems as ignoring any predictor variable. Heterogeneity in counts can be a confound, hiding effects of interest or producing spurious inferences.
+
+### 11.3.1. Beta-binomial
+
+> A beta-binomial model assumes that each binomial count observation has its own probability of a success. The model estimates the distribution of probabilities of success across cases, instead of a single probability of success. And predictor variables change the shape of this distribution, instead of directly determining the probability of each success.
+
+```{r}
+pbar <- 0.5
+theta <- 5
+
+ggplot(data = tibble(x = seq(from = 0, to = 1, by = .01))) +
+  geom_ribbon(aes(x = x, 
+                  ymin = 0, 
+                  ymax = rethinking::dbeta2(x, pbar, theta)),
+              fill = canva_pal("Green fields")(4)[1]) +
+  scale_x_continuous(breaks = c(0, .5, 1)) +
+  scale_y_continuous(NULL, breaks = NULL) +
+  labs(title = expression(paste("The ", beta, " distribution")),
+       x = "probability space",
+       y = "density") +
+  theme_hc() +
+  theme(plot.background = element_rect(fill = "grey92"))
+```
+
+A beta-binomial model takes the form:
+
+$$\begin{eqnarray} { A }_{ i } & \sim  & \text{BetaBinomial}\left( n_i, p_i, \theta \right) \\ \text{logit} \left( p_i \right) & = & \alpha \\ \alpha & \sim & \text{Normal} \left( 0,10 \right) \\ \theta & \sim & \text{HalfCauchy} \left( 0,1 \right)  \end{eqnarray}$$
+
+{{% alert note %}}
+To define your own custom probability family, follow this [vignette](https://cran.r-project.org/web/packages/brms/vignettes/brms_customfamilies.html).
+{{% /alert %}}
+
+```{r message=FALSE}
+library(rethinking)
+data(UCBadmit)
+d <- UCBadmit
+rm(UCBadmit)
+detach(package:rethinking, unload = T)
+library(brms)
+```
+
+```{r}
+beta_binomial2 <- 
+  custom_family(
+    "beta_binomial2", dpars = c("mu", "phi"),
+    links = c("logit", "log"), lb = c(NA, 0),
+    type = "int", vars = "trials[n]"
+  )
+
+stan_funs <- "
+  real beta_binomial2_lpmf(int y, real mu, real phi, int T) {
+    return beta_binomial_lpmf(y | T, mu * phi, (1 - mu) * phi);
+  }
+  int beta_binomial2_rng(real mu, real phi, int T) {
+    return beta_binomial_rng(T, mu * phi, (1 - mu) * phi);
+  }
+"
+```
+
+{{% alert warning %}}
+The precision parameter can be rather fickle, so it’s better to use `dexp` instead of `dcauchy` and to specify a reasonable start value.
+{{% /alert %}}
+
+```{r message=FALSE, cache=TRUE}
+m11.5 <-
+  brm(data = d, 
+      family = beta_binomial2,  # Here's our custom likelihood
+      admit | trials(applications) ~ 1,
+      prior = c(set_prior("normal(0, 2)", class = "Intercept"),
+                set_prior("exponential(1)", class = "phi")),
+      iter = 4000, warmup = 1000, cores = 2, chains = 2,
+      stan_funs = stan_funs)
+
+print(m11.5)
+```
+
+```{r}
+post <- posterior_samples(m11.5)
+
+tibble(x = 0:1) %>%
+  ggplot(aes(x = x)) + 
+  stat_function(fun = rethinking::dbeta2,
+                args = list(prob = mean(invlogit(post[, 1])),
+                            theta = mean(post[, 2])),
+                color = canva_pal("Green fields")(4)[4],
+                size = 1.5) +
+  mapply(function(prob, theta) {
+    stat_function(fun = rethinking::dbeta2, 
+                  args = list(prob = prob, theta = theta), 
+                  alpha = .2, 
+                  color = canva_pal("Green fields")(4)[4])
+  }, 
+  # Enter prob and theta, here
+  prob = invlogit(post[1:100, 1]),
+  theta = post[1:100, 2]) +
+  scale_y_continuous(NULL, breaks = NULL) +
+  coord_cartesian(ylim = 0:3) +
+  labs(x = "probability admit") +
+  theme_hc() +
+  theme(plot.background = element_rect(fill = "grey92"))
+```
+
+```{r message=FALSE}
+expose_functions(m11.5, vectorize = TRUE)
+
+# Required to use `predict()`
+log_lik_beta_binomial2 <- 
+  function(i, draws) {
+    mu  <- draws$dpars$mu[, i]
+    phi <- draws$dpars$phi
+    N   <- draws$data$trials[i]
+    y   <- draws$data$Y[i]
+    beta_binomial2_lpmf(y, mu, phi, N)
+  }
+
+predict_beta_binomial2 <- 
+  function(i, draws, ...) {
+    mu  <- draws$dpars$mu[, i]
+    phi <- draws$dpars$phi
+    N   <- draws$data$trials[i]
+    beta_binomial2_rng(mu, phi, N)
+  }
+
+# Required to use `fitted()`
+fitted_beta_binomial2 <- 
+  function(draws) {
+    mu     <- draws$dpars$mu
+    trials <- draws$data$trials
+    trials <- matrix(trials, nrow = nrow(mu), ncol = ncol(mu), byrow = TRUE)
+    mu * trials
+  }
+```
+
+```{r}
+# The prediction intervals
+predict(m11.5) %>%
+  as_tibble() %>% 
+  rename(LL = `2.5%ile`,
+         UL = `97.5%ile`) %>%
+  select(LL:UL) %>% 
+  # The fitted intervals
+  bind_cols(
+    fitted(m11.5) %>%
+  as_tibble()
+  ) %>% 
+  # The original data used to fit the model
+  bind_cols(m11.5$data) %>% 
+  mutate(case = 1:12) %>% 
+  
+  ggplot(aes(x = case)) +
+  geom_linerange(aes(ymin = LL/applications, 
+                     ymax = UL/applications),
+                 color = canva_pal("Green fields")(4)[1], 
+                 size = 2.5, alpha = 1/4) +
+  geom_pointrange(aes(ymin = `2.5%ile`/applications, 
+                      ymax = `97.5%ile`/applications, 
+                      y = Estimate/applications),
+                  color = canva_pal("Green fields")(4)[4],
+                  size = 1/2, shape = 1) +
+  geom_point(aes(y = admit/applications),
+             color = canva_pal("Green fields")(4)[2],
+             size = 2) +
+  scale_x_continuous(breaks = 1:12) +
+  scale_y_continuous(breaks = c(0, .5, 1)) +
+  coord_cartesian(ylim = 0:1) +
+  labs(subtitle = "Posterior validation check",
+       y = "Admittance probability") +
+  theme_hc() +
+  theme(plot.background = element_rect(fill = "grey92"),
+        axis.ticks.x = element_blank(),
+        legend.position = "none")
+```
+
+### 11.3.2. Negative-binomial or gamma-Poisson
+
+> A negative-binomial model, more usefully called a gamma-Poisson model, assumes that each Poisson count observation has its own rate.
+
+### 11.3.3. Over-dispersion, entropy, and information criteria
+
+> Both the beta-binomial and gamma-Poisson models are maximum entropy for the same constraints as the regular binomial and Poisson. They just try to account for unobserved heterogeneity in probabilities and rates.
+
+{{% alert warning %}}
+You should not use WAIC with these models, however, unless you are very sure of what you are doing. The reason is that while ordinary binomial and Poisson models can be aggregated and disaggregated across rows in the data, without changing any causal assumptions, the same is not true of beta-binomial and gamma-Poisson models. The reason is that a betabinomial or gamma-Poisson likelihood applies an unobserved parameter to each row in the data. When we then go to calculate log-likelihoods, how the data are structured will determine how the beta-distributed or gamma-distributed variation enters the model.
+
+What to do? In most cases, you’ll want to fall back on DIC, which doesn’t force a decomposition
+of the log-likelihood. Consider also using multilevel models.
+{{% /alert %}}
 
 ## References
 McElreath, R. (2016). *Statistical rethinking: A Bayesian course with examples in R and Stan.* Chapman & Hall/CRC Press.
