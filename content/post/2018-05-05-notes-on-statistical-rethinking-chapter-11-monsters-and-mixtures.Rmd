@@ -8,7 +8,7 @@ categories:
 tags:
   - bayesian
   - notes
-summary: Notes for Chapter 10 of [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/)
+summary: Notes for Chapter 11 of [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/)
 ---
 
 Mixture modeling help us transform our modeling to cope with the inconvenient realities of measurement, rather than transforming measurements to cope with the constraints of our models.
