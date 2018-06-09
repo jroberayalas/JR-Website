@@ -41,7 +41,7 @@ weight = 5
 
 # About me
 
-I'm a machine learning scientist working at [The George Institute for Global Health](https://www.georgeinstitute.org.uk) in the University of Oxford. I employ and develop machine and deep learning algorithms that can find patterns in large multi-modal data for managing the healthcare challenges facing the world in the 21st century.
+I'm a machine learning scientist working at [The George Institute for Global Health](https://www.georgeinstitute.org.uk) at the University of Oxford. I employ and develop machine and deep learning algorithms that can find patterns in large multi-modal data for managing the healthcare challenges facing the world in the 21st century.
 
 I earned my PhD from the Department of Automatic Control and Systems Engineering, University of Sheffield. My thesis was Machine Learning and Data Mining for Environmental Systems Modelling and Analysis, advised by Dr [Hua-Liang Wei](https://www.sheffield.ac.uk/acse/staff/hw).
 
