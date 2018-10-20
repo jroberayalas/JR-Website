@@ -1,0 +1,309 @@
+---
+title: Notes on Statistical Rethinking (Chapter 12 - Multilevel Models)
+author: José Roberto Ayala Solares
+date: '2018-06-09'
+slug: notes-on-statistical-rethinking-chapter-12-multilevel-models
+categories:
+  - StatisticalRethinking
+tags:
+  - bayesian
+  - notes
+summary: Notes for Chapter 12 of [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/)
+---
+
+> Multilevel models remember features of each cluster in the data as they learn about all of the clusters. Depending upon the variation among clusters, which is learned from the data as well, the model pools information across clusters. This pooling tends to improve estimates about each cluster. This improved estimation leads to several, more pragmatic sounding, benefits of the multilevel approach.
+
+> (1) Improved estimates for repeat sampling. When more than one observation arises from the same individual, location, or time, then traditional, single-level models either maximally underfit or overfit the data.
+(2) Improved estimates for imbalance in sampling. When some individuals, locations, or times are sampled more than others, multilevel models automatically cope with differing uncertainty across these clusters. This prevents over-sampled clusters from unfairly dominating inference.
+(3) Estimates of variation. If our research questions include variation among individuals or other groups within the data, then multilevel models are a big help, because they model variation explicitly.
+(4) Avoid averaging, retain variation. Frequently, scholars pre-average some data to construct variables. This can be dangerous, because averaging removes variation, and there are also typically several different ways to perform the averaging. Averaging therefore both manufactures false confidence and introduces arbitrary data transformations. Multilevel models allow us to preserve the uncertainty and avoid data transformations.
+
+> There are costs of the multilevel approach. The first is that we have to make some new assumptions. We have to define the distributions from which the characteristics of the clusters arise. Luckily, conservative maximum entropy distributions do an excellent job in this context. Second, there are new estimation challenges that come with the full multilevel approach. These challenges lead us headfirst into MCMC estimation. Third, multilevel models can be hard to understand, because they make predictions at different levels of the data. In many cases, we are interested in only one or a few of those levels, and as a consequence, model comparison using metrics like DIC and WAIC becomes more subtle. The basic logic remains unchanged, but now we have to make more decisions about which parameters in the model we wish to focus on.
+
+{{% alert note %}}
+The most common synonyms for “multilevel” are **hierarchical** and **mixed effects**. The type of parameters that appear in multilevel models are most commonly known as **random effects**.
+{{% /alert %}}
+
+## 12.1. Example: Multilevel tadpoles
+
+```{r message=FALSE}
+library(rethinking)
+data(reedfrogs)
+d <- reedfrogs
+rm(reedfrogs)
+detach(package:rethinking, unload = T)
+library(brms)
+```
+
+```{r message=FALSE}
+library(tidyverse)
+d %>%
+    glimpse()
+```
+
+```{r}
+d <- 
+    d %>%
+    mutate(tank = 1:nrow(d))
+```
+
+> Varying intercepts are the simplest kind of varying effects.
+
+$$\begin{eqnarray} { s }_{ i } & \sim  & \text{Binomial}\left( n_i, p_i \right) & \text{<- likelihood } \\ \text{logit} \left( p_i \right) & = & \alpha_{\text{TANK}[i]} & \text{<- log-odds for tank on row }i\\ \alpha_{\text{TANK}[i]} & \sim & \text{Normal} \left( \alpha,\sigma \right) & \text{<- varying intercepts prior } \\ \alpha & \sim & \text{Normal} \left( 0,1 \right) & \text{<- prior of average tank } \\ \sigma & \sim & \text{HalfCauchy} \left( 0,1 \right) & \text{<- prior of standard deviation of tanks }  \end{eqnarray}$$
+
+> These two parameters, $\alpha$ and $\sigma$, are often referred to as **hyperparameters**. They are parameters for parameters. And their priors are often called **hyperpriors**. In principle, there is no limit to how many “hyper” levels you can install in a model. For example, different populations of tanks could be embedded within different regions of habitat. But in practice there are limits, both because of computation and our ability to understand the model.
+
+{{% alert note %}}
+Why Gaussian tanks? In the multilevel tadpole model, the population of tanks is assumed to be Gaussian. Why? The least satisfying answer is “convention.” The Gaussian assumption is extremely common. A more satisfying answer is “pragmatism.” The Gaussian assumption is easy to work with, and it generalizes easily to more than one dimension. This generalization will be important for handling varying slopes in the next chapter. But my preferred answer is instead “entropy.” If all we are willing to say about a distribution is the mean and variance, then the Gaussian is the most conservative assumption. There is no rule requiring the Gaussian distribution of varying effects, though. So if you have a good reason to use another distribution, then do so.
+{{% /alert %}}
+
+```{r message=FALSE, cache=TRUE}
+# unpooled model
+m12.1 <- 
+    brm(data = d, family = binomial,
+        surv | trials(density) ~ 0 + factor(tank),
+        prior = c(set_prior("normal(0, 5)", class = "b")),
+        chains = 4, iter = 2000, warmup = 500, cores = 4)
+```
+
+```{r message=FALSE, cache=TRUE}
+# pooled model
+m12.2 <- 
+    brm(data = d, family = binomial,
+        surv | trials(density) ~ 1 + (1 | tank),
+        prior = c(set_prior("normal(0, 1)", class = "Intercept"),
+                  set_prior("cauchy(0, 1)", class = "sd")),
+        chains = 4, iter = 4000, warmup = 1000, cores = 4)
+
+print(m12.2)
+```
+
+```{r message=FALSE, cache=TRUE}
+kf <- kfold(m12.1, m12.2, 
+            K = 10, cores = 2)
+kf
+```
+
+> The $K$-fold cross-validation difference of 59, with a standard error around 9, suggests that model m12.2 is the clear favorite relative to m12.1. 
+
+```{r}
+post <- posterior_samples(m12.2)
+
+invlogit <- function(x){1/(1+exp(-x))}
+
+postMdn <- 
+  coef(m12.2, robust = T) %>% data.frame() %>%
+  add_column(tank = d$tank,
+             density = d$density,
+             propsurv = d$propsurv) %>%
+  mutate(postMdn = invlogit(tank.Estimate.Intercept))
+
+library(ggthemes) 
+
+postMdn %>%
+  ggplot(aes(x = tank, y = postMdn)) +
+  theme_fivethirtyeight() +
+  geom_hline(yintercept = invlogit(median(post$b_Intercept)), linetype = 2, size = 1/4) +
+  geom_vline(xintercept = c(16.5, 32.5), size = 1/4) +
+  geom_point(shape = 1) +
+  geom_point(aes(y = propsurv), color = "orange2") +
+  coord_cartesian(ylim = c(0, 1)) +
+  scale_x_continuous(breaks = c(1, 16, 32, 48)) +
+  labs(title = "Proportion of survivors in each tank",
+       subtitle = "The empirical proportions are in orange while the\nmodel-implied proportions are the black circles.\nThe dashed line is the model-implied average survival proportion.") +
+  annotate("text", x = c(8, 16 + 8, 32 + 8), y = 0, 
+           label = c("small tanks", "medium tanks", "large tanks")) +
+  theme(panel.grid = element_blank())
+```
+
+> The plot above shows pooling information across clusters (tanks) to improve estimates. What pooling means here is that each tank provides information that can be used to improve the estimates for all of the other tanks. Each tank helps in this way, because we made an assumption about how the varying log-odds in each tank related to all of the others. We assumed a distribution, the normal distribution in this case. Once we have a distributional assumption, we can use Bayes’ theorem to optimally (in the small world only) share information among the clusters.
+
+{{% alert note %}}
+Remember that “sampling” from a posterior distribution is not a simulation of empirical sampling. It’s just a convenient way to characterize and work with the uncertainty in the distribution.
+{{% /alert %}}
+
+```{r}
+tibble(x = c(-3, 4)) %>%
+  
+  ggplot(aes(x = x)) + 
+  theme_fivethirtyeight() +
+  mapply(function(mean, sd) {
+    stat_function(fun = dnorm, 
+                  args = list(mean = mean, sd = sd), 
+                  alpha = .2, 
+                  color = "orange2")
+  }, 
+  # Enter means and standard deviations here
+  mean = post[1:100, 1],
+  sd = post[1:100, 2]
+  ) +
+  labs(title = "Survival in log-odds") +
+  scale_y_continuous(NULL, breaks = NULL)
+```
+
+```{r}
+ggplot(data = post, 
+       aes(x = invlogit(rnorm(nrow(post), mean = post[, 1], sd = post[, 2])))) +
+  theme_fivethirtyeight() +
+  geom_density(size = 0, fill = "orange2") +
+  labs(title = "Probability of survival") +
+  scale_y_continuous(NULL, breaks = NULL)
+```
+
+{{% alert note %}}
+Instead of using half-Cauchy priors for the variance components, you can use exponential priors.
+{{% /alert %}}
+
+```{r message=FALSE, cache=TRUE}
+m12.2.e <- 
+  brm(data = d, family = binomial,
+      surv | trials(density) ~ 1 + (1 | tank),
+      prior = c(set_prior("normal(0, 1)", class = "Intercept"),
+                set_prior("exponential(1)", class = "sd")),
+      chains = 4, iter = 2000, warmup = 500, cores = 4)
+```
+
+```{r}
+ggplot(data = tibble(x = seq(from = 0, to = 4, by = .01)), 
+       aes(x = x)) +
+  theme_fivethirtyeight()+
+  geom_ribbon(aes(ymin = 0, ymax = dexp(x, rate = 1)),  # the prior
+              fill = "orange2", alpha = 1/3) +
+  geom_density(data = posterior_samples(m12.2.e),       # the posterior
+               aes(x = sd_tank__Intercept), 
+               size = 0, fill = "orange2") +
+  geom_vline(xintercept = posterior_samples(m12.2.e)[, 2] %>% median(),
+             color = "blue", linetype = 2) +
+  scale_y_continuous(NULL, breaks = NULL) +
+  coord_cartesian(xlim = c(0, 3.5)) +
+  labs(title = "Bonus prior/posterior plot\n for `sd_tank__Intercept`",
+       subtitle = "The prior is the semitransparent ramp in the\nbackground. The posterior is the solid orange\nmound. The dashed line is the posterior median.")
+```
+
+## 12.2. Varying effects and the underfitting/overfitting trade-off
+
+> Varying intercepts are just regularized estimates, but adaptively regularized by estimating how diverse the clusters are while estimating the features of each cluster.
+
+> A major benefit of using varying effects estimates, instead of the empirical raw estimates, is that they provide more accurate estimates of the individual cluster (tank) intercepts. On average, the varying effects actually provide a better estimate of the individual tank (cluster) means. The reason that the varying intercepts provide better estimates is that they do a better job of trading off underfitting and overfitting.
+
+> There are three ways of modelling:
+
+> (1) Complete pooling. This means we assume that the population of ponds is invariant, the same as estimating a common intercept for all ponds. However, your estimate is unlikely to exactly match the intercept of any particular pond. As a result, the total sample intercept underfits the data. This sort of model is equivalent to assuming that the variation among ponds is zero.
+(2) No pooling. This means we assume that each pond tells us nothing about any other pond. This is the model with amnesia. As a consequence, the error of these estimates is high, and they are rather overfit to the data. Standard errors for each intercept can be very large, and in extreme cases, even infinite.
+(3) Partial pooling. This means using an adaptive regularizing prior. This produces estimates for each cluster that are less underfit than the grand mean and less overfit than the no-pooling estimates.
+
+### The model
+
+$$\begin{eqnarray} { s }_{ i } & \sim  & \text{Binomial}\left( n_i, p_i \right) \\ \text{logit} \left( p_i \right) & = & \alpha_{\text{POND}[i]} \\ \alpha_{\text{POND}[i]} & \sim & \text{Normal} \left( \alpha,\sigma \right) \\ \alpha & \sim & \text{Normal} \left( 0,1 \right) \\ \sigma & \sim & \text{HalfCauchy} \left( 0,1 \right)  \end{eqnarray}$$
+
+### 12.2.2. Assign values to the parameters
+
+```{r}
+a      <- 1.4
+sigma  <- 1.5
+nponds <- 60
+ni     <- rep(c(5, 10, 25, 35), each = 15) %>% as.integer()
+
+set.seed(10579595) # To make results reproducible
+dsim <- 
+  tibble(pond = 1:nponds,
+         ni = ni,
+         true_a = rnorm(nponds, mean = a, sd = sigma))
+```
+
+### 12.2.3. Simulate survivors
+
+```{r}
+set.seed(10579595) # To make results reproducible
+dsim <-
+  dsim %>%
+  mutate(si = rbinom(nponds, prob = invlogit(true_a), size = ni)) %>%
+  mutate(p_nopool = si/ni) 
+
+dsim %>% 
+  glimpse()
+```
+
+### 12.2.5. Compute the partial-pooling estimates
+
+```{r message=FALSE, cache=TRUE}
+m12.3 <- 
+  brm(data = dsim, family = binomial,
+      si | trials(ni) ~ 1 + (1 | pond),
+      prior = c(set_prior("normal(0, 1)", class = "Intercept"),
+                set_prior("cauchy(0, 1)", class = "sd")),
+      chains = 1, iter = 10000, warmup = 1000, cores = 1)
+
+print(m12.3)
+```
+
+```{r}
+coef(m12.3)$pond %>% 
+  round(digits = 2)
+```
+
+```{r}
+p_partpool <- 
+  coef(m12.3) %>% 
+  data.frame() %>%  # as_tibble() didn't work well, for this.
+  select(pond.Estimate.Intercept) %>%
+  mutate(pond.Estimate.Intercept = invlogit(pond.Estimate.Intercept)) %>%
+  pull()
+
+dsim <- 
+  dsim %>%
+  mutate(p_true = invlogit(true_a)) %>%
+  mutate(nopool_error = abs(p_nopool - p_true)) %>%
+  mutate(partpool_error = abs(p_partpool - p_true))
+
+dsim %>% 
+  glimpse()
+```
+
+```{r}
+dfline <- 
+  dsim %>%
+  select(ni, nopool_error:partpool_error) %>%
+  gather(key, value, -ni) %>%
+  group_by(key, ni) %>%
+  summarise(mean_error = mean(value)) %>%
+  mutate(x = c(1, 16, 31, 46),
+         xend = c(15, 30, 45, 60))
+  
+ggplot(data = dsim, aes(x = pond)) +
+  theme_fivethirtyeight() +
+  geom_vline(xintercept = c(15.5, 30.5, 45.4), 
+             color = "white", size = 2/3) +
+  geom_point(aes(y = nopool_error), color = "orange2") +
+  geom_point(aes(y = partpool_error), shape = 1) +
+  geom_segment(data = dfline, 
+               aes(x = x, xend = xend, 
+                   y = mean_error, yend = mean_error),
+               color = rep(c("orange2", "black"), each = 4),
+               linetype = rep(1:2, each = 4)) +
+  labs(y = "absolute error",
+       title = "Estimate error by model type",
+       subtitle = "The horizontal axis displays pond number. The vertical\naxis measures the absolute error in the predicted proportion\nof survivors, compared to the true value used in the simulation.\nThe higher the point, the worse the estimate. No-pooling shown\nin orange. Partial pooling shown in black. The orange and\ndashed black lines show the average error for each kind of\nestimate, across each initial density of tadpoles (pond size).\nSmaller ponds produce more error, but the partial pooling\nestimates are better on average, especially in smaller ponds.") +
+  scale_x_continuous(breaks = c(1, 10, 20, 30, 40, 50, 60)) +
+  annotate("text", x = c(15 - 7.5, 30 - 7.5, 45 - 7.5, 60 - 7.5), y = .45, 
+           label = c("tiny (5)", "small (10)", "medium (25)", "large (35)")) +
+  theme(panel.grid = element_blank())
+```
+
+```{r}
+dsim %>%
+  select(ni, nopool_error:partpool_error) %>%
+  gather(key, value, -ni) %>%
+  group_by(key) %>%
+  summarise(mean_error   = mean(value) %>% round(digits = 3),
+            median_error = median(value) %>% round(digits = 3))
+```
+
+## 12.3. More than one type of cluster
+
+
+
+## References
+McElreath, R. (2016). *Statistical rethinking: A Bayesian course with examples in R and Stan.* Chapman & Hall/CRC Press.
+
+Kurz, A. S. (2018, March 9). *brms, ggplot2 and tidyverse code, by chapter*. Retrieved from https://goo.gl/JbvNTj
