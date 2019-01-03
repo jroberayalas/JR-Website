@@ -8,7 +8,7 @@ categories:
 tags:
   - bayesian
   - notes
-summary: Notes for Chapter 10 of [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/)
+summary: Notes for Chapter 11 of [Statistical Rethinking](http://xcelab.net/rm/statistical-rethinking/)
 ---
 
 
@@ -33,10 +33,9 @@ d &lt;- Trolley
 
 rm(Trolley)
 detach(package:rethinking, unload = T)
-library(brms)</code></pre>
-<pre><code>## Warning: package &#39;brms&#39; was built under R version 3.4.4</code></pre>
-<pre><code>## Warning: package &#39;Rcpp&#39; was built under R version 3.4.4</code></pre>
-<pre class="r"><code>library(ggthemes)
+library(brms)
+
+library(ggthemes)
 scales::show_col(canva_pal(&quot;Green fields&quot;)(4))</code></pre>
 <p><img src="/post/2018-05-05-notes-on-statistical-rethinking-chapter-11-monsters-and-mixtures_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
 </div>
@@ -44,10 +43,10 @@ scales::show_col(canva_pal(&quot;Green fields&quot;)(4))</code></pre>
 <h3>11.1.2. Describing an ordered distribution with intercepts</h3>
 <pre class="r"><code>library(tidyverse)</code></pre>
 <pre><code>## ── Attaching packages ──────────────────────────────────────────────────────────────────── tidyverse 1.2.1 ──</code></pre>
-<pre><code>## ✔ tibble  1.4.2     ✔ purrr   0.2.4
-## ✔ tidyr   0.7.2     ✔ dplyr   0.7.4
-## ✔ readr   1.1.1     ✔ stringr 1.3.0
-## ✔ tibble  1.4.2     ✔ forcats 0.2.0</code></pre>
+<pre><code>## ✔ tibble  1.4.2     ✔ purrr   0.2.5
+## ✔ tidyr   0.8.1     ✔ dplyr   0.7.5
+## ✔ readr   1.1.1     ✔ stringr 1.3.1
+## ✔ tibble  1.4.2     ✔ forcats 0.3.0</code></pre>
 <pre><code>## ── Conflicts ─────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
 ## ✖ tidyr::extract() masks rstan::extract()
 ## ✖ dplyr::filter()  masks stats::filter()
@@ -161,6 +160,9 @@ ggplot(data = d_plot,
 <p><img src="/post/2018-05-05-notes-on-statistical-rethinking-chapter-11-monsters-and-mixtures_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
 <p>The model is defined as:</p>
 <p><span class="math display">\[\begin{eqnarray} { R }_{ i } &amp; \sim  &amp; \text{Ordered}\left( \mathbf{p} \right) \\ \text{logit} \left( \Pr \left( R_i \le k \right) \right) &amp; = &amp; \alpha_k  \end{eqnarray}\]</span></p>
+<blockquote>
+<p>Notice that the cumulative logit of the largest response is infinity.</p>
+</blockquote>
 <pre class="r"><code># Here are our starting values, which we specify with the `inits` argument in brm()
 Inits &lt;- list(`Intercept[1]` = -2,
               `Intercept[2]` = -1,
@@ -204,7 +206,7 @@ print(m11.1)</code></pre>
 m11.1 %&gt;% 
     fixef() %&gt;% 
     invlogit()</code></pre>
-<pre><code>##               Estimate Est.Error   2.5%ile  97.5%ile
+<pre><code>##               Estimate Est.Error      Q2.5     Q97.5
 ## Intercept[1] 0.1282493 0.5075149 0.1218421 0.1350510
 ## Intercept[2] 0.2196851 0.5061199 0.2117017 0.2281557
 ## Intercept[3] 0.3276420 0.5053175 0.3188293 0.3371890
@@ -214,6 +216,505 @@ m11.1 %&gt;%
 </div>
 <div id="adding-predictor-variables" class="section level3">
 <h3>11.1.3. Adding predictor variables</h3>
+<blockquote>
+<p>To include predictor variables, we define the log-cumulative-odds of each response <span class="math inline">\(k\)</span> as a sum of its intercept <span class="math inline">\(\alpha_k\)</span> and a typical linear model <span class="math inline">\(\phi_i\)</span>.</p>
+</blockquote>
+<p><span class="math display">\[\begin{eqnarray} { R }_{ i } &amp; \sim  &amp; \text{Ordered}\left( \mathbf{p} \right) \\ \text{logit} \left( \Pr \left( R_i \le k \right) \right) &amp; = &amp; \alpha_k - \phi_i \end{eqnarray}\]</span></p>
+<p>where <span class="math inline">\(\phi_i = \beta x_i\)</span></p>
+<blockquote>
+<p>Why is the linear model <span class="math inline">\(\phi\)</span> subtracted from each intercept? Because if we decrease the log-cumulative odds of every outcome value <span class="math inline">\(k\)</span> below the maximum, this necessarily shifts probability mass upwards towards higher outcome values.</p>
+</blockquote>
+<pre class="r"><code># First, we needed to specify the logistic() function, which is apart of the dordlogit() function
+logistic &lt;- function(x) {
+    p &lt;- 1 / (1 + exp(-x))
+    p &lt;- ifelse(x == Inf, 1, p) 
+    p
+}
+
+# Now we get down to it
+dordlogit &lt;- function(x, phi, a, log = FALSE) {
+    a  &lt;- c(as.numeric(a), Inf)
+    p  &lt;- logistic(a[x] - phi)
+    na &lt;- c(-Inf, a)
+    np &lt;- logistic(na[x] - phi)
+    p  &lt;- p - np
+    if (log == TRUE) p &lt;- log(p)
+    p
+}</code></pre>
+<pre class="r"><code>pk &lt;- dordlogit(1:7, 0, fixef(m11.1)[, 1])
+pk</code></pre>
+<pre><code>## [1] 0.12824925 0.09143585 0.10795693 0.23411314 0.14728381 0.14550606
+## [7] 0.14545495</code></pre>
+<pre class="r"><code>pk &lt;- dordlogit(1:7, 0.5, fixef(m11.1)[, 1])
+pk</code></pre>
+<pre><code>## [1] 0.08192101 0.06393219 0.08228230 0.20926676 0.15905405 0.18440673
+## [7] 0.21913697</code></pre>
+<pre class="r"><code># Start values for b11.2
+Inits &lt;- list(`Intercept[1]` = -1.9,
+              `Intercept[2]` = -1.2,
+              `Intercept[3]` = -0.7,
+              `Intercept[4]` = 0.2,
+              `Intercept[5]` = 0.9,
+              `Intercept[6]` = 1.8,
+              action = 0,
+              intention = 0,
+              contact = 0)
+
+m11.2 &lt;- 
+    brm(data = d, family = cumulative,
+        response ~ 1 + action + intention + contact,
+        prior = c(set_prior(&quot;normal(0, 10)&quot;, class = &quot;Intercept&quot;),
+                  set_prior(&quot;normal(0, 10)&quot;, class = &quot;b&quot;)),
+        iter = 2000, warmup = 1000, cores = 2, chains = 2,
+        inits = list(Inits, Inits))
+
+# Start values for b11.3
+Inits &lt;- list(`Intercept[1]` = -1.9,
+              `Intercept[2]` = -1.2,
+              `Intercept[3]` = -0.7,
+              `Intercept[4]` = 0.2,
+              `Intercept[5]` = 0.9,
+              `Intercept[6]` = 1.8,
+              action = 0,
+              intention = 0,
+              contact = 0,
+              `action:intention` = 0,
+              `contact:intention` = 0)
+
+m11.3 &lt;- 
+    brm(data = d, family = cumulative,
+        response ~ 1 + action + intention + contact + action:intention + contact:intention,
+        prior = c(set_prior(&quot;normal(0, 10)&quot;, class = &quot;Intercept&quot;),
+                  set_prior(&quot;normal(0, 10)&quot;, class = &quot;b&quot;)),
+        iter = 2000, warmup = 1000, cores = 2, chains = 2,
+        inits = list(Inits, Inits))</code></pre>
+<pre class="r"><code>library(broom)
+
+tidy(m11.1) %&gt;% mutate(model = &quot;m11.1&quot;) %&gt;% 
+    bind_rows(tidy(m11.2) %&gt;% mutate(model = &quot;m11.2&quot;)) %&gt;% 
+    bind_rows(tidy(m11.3) %&gt;% mutate(model = &quot;m11.3&quot;)) %&gt;% 
+    select(model, term, estimate) %&gt;% 
+    filter(term != &quot;lp__&quot;) %&gt;% 
+    complete(term = distinct(., term), model) %&gt;% 
+    mutate(estimate = round(estimate, digits = 2)) %&gt;%
+    spread(key = model, value = estimate) %&gt;% 
+    slice(c(6:11, 1, 4, 3, 2, 5))  # Here we indicate the order we&#39;d like the rows in</code></pre>
+<pre><code>##                   term m11.1 m11.2 m11.3
+## 1       b_Intercept[1] -1.92 -2.84 -2.64
+## 2       b_Intercept[2] -1.27 -2.16 -1.94
+## 3       b_Intercept[3] -0.72 -1.57 -1.34
+## 4       b_Intercept[4]  0.25 -0.55 -0.31
+## 5       b_Intercept[5]  0.89  0.12  0.36
+## 6       b_Intercept[6]  1.77  1.02  1.27
+## 7             b_action    NA -0.71 -0.47
+## 8          b_intention    NA -0.72 -0.28
+## 9            b_contact    NA -0.96 -0.33
+## 10  b_action:intention    NA    NA -0.44
+## 11 b_intention:contact    NA    NA -1.27</code></pre>
+<pre class="r"><code>loo::compare(waic(m11.1), waic(m11.2), waic(m11.3))</code></pre>
+<pre><code>##             elpd_diff se_diff  elpd_waic p_waic   waic    
+## waic(m11.3)      0.0       0.0 -18464.7      11.1  36929.3
+## waic(m11.2)    -80.3      12.8 -18545.0       9.1  37090.0
+## waic(m11.1)   -462.6      31.3 -18927.2       6.0  37854.5</code></pre>
+<pre class="r"><code>nd &lt;-
+  tibble(action = 0,
+         contact = 0, 
+         intention = 0:1)
+
+max_iter &lt;- 100
+
+fitted(m11.3, 
+        newdata = nd, 
+        subset = 1:max_iter,
+        summary = F) %&gt;% 
+  as_tibble() %&gt;% 
+  # We convert the data to the long format
+  gather() %&gt;%
+  # We need an variable to index which posterior iteration we&#39;re working with
+  mutate(iter = rep(1:max_iter, times = 14)) %&gt;%
+  # This step isn’t technically necessary, but I prefer my iter index at the far left.
+  select(iter, everything()) %&gt;% 
+  # Here we extract the `intention` and `response` information out of the `key` vector and spread it into two vectors.
+  separate(key, into = c(&quot;intention&quot;, &quot;rating&quot;)) %&gt;% 
+  # That step produced two character vectors. They’ll be more useful as numbers
+  mutate(intention = intention %&gt;% as.double(),
+         rating =  rating %&gt;% as.double()) %&gt;%
+  # Here we convert `intention` into its proper 0:1 metric
+  mutate(intention = intention -1) %&gt;%
+  # This isn&#39;t necessary, but it helps me understand exactly what metric the values are currently in
+  rename(pk = value) %&gt;% 
+  # This step is based on McElreath&#39;s R code 11.10 on page 338
+  mutate(`pk:rating` = pk*rating) %&gt;% 
+  # I’m not sure how to succinctly explain this. You’re just going to have to trust me.
+  group_by(iter, intention) %&gt;% 
+  # This is very important for the next step.
+  arrange(iter, intention, rating) %&gt;% 
+  # Here we take our `pk` values and make culmulative sums. Why? Take a long hard look at Figure 11.2. 
+  mutate(probability = cumsum(pk)) %&gt;% 
+  # `rating == 7` is unnecessary. These `probability` values are by definition 1.
+  filter(rating &lt; 7) %&gt;% 
+  
+  ggplot(aes(x = intention, 
+             y = probability, 
+             color = probability)) +
+  geom_line(aes(group = interaction(iter, rating)),
+            alpha = 1/10) +
+  # Note how we made a new data object for geom_text()
+  geom_text(data = tibble(text        = 1:7,
+                          intention   = seq(from = .9, to = .1, length.out = 7),
+                          probability = c(.05, .12, .20, .35, .53, .71, .87)),
+            aes(label = text),
+            size = 3) +
+  scale_x_continuous(breaks = 0:1) +
+  scale_y_continuous(breaks = c(0, .5, 1)) +
+  coord_cartesian(ylim = 0:1) +
+  labs(subtitle = &quot;action = 0,\ncontact = 0&quot;,
+       x = &quot;intention&quot;) +
+  theme_hc() +
+  scale_color_gradient(low = canva_pal(&quot;Green fields&quot;)(4)[4],
+                       high = canva_pal(&quot;Green fields&quot;)(4)[1]) +
+  theme(plot.background = element_rect(fill = &quot;grey92&quot;),
+        legend.position = &quot;none&quot;)</code></pre>
+<p><img src="/post/2018-05-05-notes-on-statistical-rethinking-chapter-11-monsters-and-mixtures_files/figure-html/unnamed-chunk-12-1.png" width="672" /></p>
+<pre class="r"><code>make_data_for_an_alternative_fiture &lt;- function(action, contact, max_iter){
+  
+  nd &lt;-
+    tibble(action = action,
+           contact = contact, 
+           intention = 0:1)
+  
+  max_iter &lt;- max_iter
+  
+  fitted(m11.3, 
+         newdata = nd, 
+         subset = 1:max_iter,
+         summary = F) %&gt;% 
+    as_tibble() %&gt;%
+    gather() %&gt;%
+    mutate(iter = rep(1:max_iter, times = 14)) %&gt;%
+    select(iter, everything()) %&gt;% 
+    separate(key, into = c(&quot;intention&quot;, &quot;rating&quot;)) %&gt;% 
+    mutate(intention = intention %&gt;% as.double(),
+           rating =  rating %&gt;% as.double()) %&gt;%
+    mutate(intention = intention -1) %&gt;%
+    rename(pk = value) %&gt;% 
+    mutate(`pk:rating` = pk*rating) %&gt;% 
+    group_by(iter, intention) %&gt;% 
+    
+    # Everything above this point is identical to the previous custom function.
+    # All we do is replace the last few lines with this one line of code. 
+    summarise(mean_rating = sum(`pk:rating`))
+}</code></pre>
+<pre class="r"><code># Alternative to Figure 11.3.a
+make_data_for_an_alternative_fiture(action = 0, 
+                                    contact = 0, 
+                                    max_iter = 100) %&gt;% 
+  
+  ggplot(aes(x = intention, y = mean_rating, group = iter)) +
+  geom_line(alpha = 1/10, color = canva_pal(&quot;Green fields&quot;)(4)[1]) +
+  scale_x_continuous(breaks = 0:1) +
+  scale_y_continuous(breaks = 1:7) +
+  coord_cartesian(ylim = 1:7) +
+  labs(subtitle = &quot;action = 0,\ncontact = 0&quot;,
+       x = &quot;intention&quot;,
+       y = &quot;response&quot;) +
+  theme_hc() +
+  theme(plot.background = element_rect(fill = &quot;grey92&quot;),
+        legend.position = &quot;none&quot;)</code></pre>
+<p><img src="/post/2018-05-05-notes-on-statistical-rethinking-chapter-11-monsters-and-mixtures_files/figure-html/unnamed-chunk-14-1.png" width="672" /></p>
+<pre class="r"><code># Alternative to Figure 11.3.b
+make_data_for_an_alternative_fiture(action = 1, 
+                                    contact = 0, 
+                                    max_iter = 100) %&gt;% 
+  
+ ggplot(aes(x = intention, y = mean_rating, group = iter)) +
+  geom_line(alpha = 1/10, color = canva_pal(&quot;Green fields&quot;)(4)[1]) +
+  scale_x_continuous(breaks = 0:1) +
+  scale_y_continuous(breaks = 1:7) +
+  coord_cartesian(ylim = 1:7) +
+  labs(subtitle = &quot;action = 1,\ncontact = 0&quot;,
+       x = &quot;intention&quot;,
+       y = &quot;response&quot;) +
+  theme_hc() +
+  theme(plot.background = element_rect(fill = &quot;grey92&quot;),
+        legend.position = &quot;none&quot;)</code></pre>
+<p><img src="/post/2018-05-05-notes-on-statistical-rethinking-chapter-11-monsters-and-mixtures_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
+<pre class="r"><code># Alternative to Figure 11.3.c
+make_data_for_an_alternative_fiture(action = 0, 
+                                    contact = 1, 
+                                    max_iter = 100) %&gt;% 
+  
+  ggplot(aes(x = intention, y = mean_rating, group = iter)) +
+  geom_line(alpha = 1/10, color = canva_pal(&quot;Green fields&quot;)(4)[1]) +
+  scale_x_continuous(breaks = 0:1) +
+  scale_y_continuous(breaks = 1:7) +
+  coord_cartesian(ylim = 1:7) +
+  labs(subtitle = &quot;action = 0,\ncontact = 1&quot;,
+       x = &quot;intention&quot;,
+       y = &quot;response&quot;) +
+  theme_hc() +
+  theme(plot.background = element_rect(fill = &quot;grey92&quot;),
+        legend.position = &quot;none&quot;)</code></pre>
+<p><img src="/post/2018-05-05-notes-on-statistical-rethinking-chapter-11-monsters-and-mixtures_files/figure-html/unnamed-chunk-16-1.png" width="672" /></p>
+</div>
+</div>
+<div id="zero-inflated-outcomes" class="section level2">
+<h2>11.2. Zero-inflated outcomes</h2>
+<blockquote>
+<p>Very often, the things we can measure are not emissions from any pure process. Instead, they are mixtures of multiple processes. Whenever there are different causes for the same observation, then a mixture model may be useful. A mixture model uses more than one simple probability distribution to model a mixture of causes. In effect, these models use more than one likelihood for the same outcome variable.</p>
+</blockquote>
+<p>{{% alert note %}} Count variables are especially prone to needing a mixture treatment. The reason is that a count of zero can often arise more than one way. A “zero” means that nothing happened, and nothing can happen either because the rate of events is low or rather because the process that generates events failed to get started. {{% /alert %}}</p>
+<div id="example-zero-inflated-poisson" class="section level3">
+<h3>11.2.1. Example: Zero-inflated Poisson</h3>
+<p>A zero-inflated Poisson regression takes the form:</p>
+<p><span class="math display">\[\begin{eqnarray} { y }_{ i } &amp; \sim  &amp; \text{ZIPoisson}\left( p_i, \lambda_i \right) \\ \text{logit} \left( p_i \right) &amp; = &amp; \alpha_p + \beta_p x_i \\ \text{log} \left( \lambda_i \right) &amp; = &amp; \alpha_\lambda + \beta_\lambda x_i  \end{eqnarray}\]</span></p>
+<pre class="r"><code># define parameters
+prob_drink &lt;- 0.2  # 20% of days
+rate_work  &lt;- 1    # average 1 manuscript per day
+
+# sample one year of production
+N &lt;- 365
+
+# simulate days monks drink
+set.seed(0.2)
+drink &lt;- rbinom(N, 1, prob_drink)
+
+# simulate manuscripts completed
+y &lt;- (1 - drink)*rpois(N, rate_work)</code></pre>
+<pre class="r"><code>d &lt;-
+  tibble(Y = y) %&gt;%
+  arrange(Y) %&gt;% 
+  mutate(zeros = c(rep(&quot;zeros_drink&quot;, times = sum(drink)),
+                   rep(&quot;zeros_work&quot;,  times = sum(y == 0 &amp; drink == 0)),
+                   rep(&quot;nope&quot;,        times = N - sum(y == 0)))) 
+  
+  ggplot(data = d, aes(x = Y)) +
+  geom_histogram(aes(fill = zeros),
+                 binwidth = 1, color = &quot;grey92&quot;) +
+  scale_fill_manual(values = c(canva_pal(&quot;Green fields&quot;)(4)[1], 
+                               canva_pal(&quot;Green fields&quot;)(4)[2], 
+                               canva_pal(&quot;Green fields&quot;)(4)[1])) +
+  xlab(&quot;Manuscripts completed&quot;) +
+  theme_hc() +
+  theme(plot.background = element_rect(fill = &quot;grey92&quot;),
+        legend.position = &quot;none&quot;)</code></pre>
+<p><img src="/post/2018-05-05-notes-on-statistical-rethinking-chapter-11-monsters-and-mixtures_files/figure-html/unnamed-chunk-18-1.png" width="672" /></p>
+<pre class="r"><code>m11.4 &lt;- 
+    brm(data = d, family = zero_inflated_poisson(),
+        Y ~ 1,
+        prior = c(set_prior(&quot;normal(0, 10)&quot;, class = &quot;Intercept&quot;),
+                  # This is the brms default. See below.
+                  set_prior(&quot;beta(1, 1)&quot;, class = &quot;zi&quot;)),
+        cores = 4)
+
+print(m11.4)</code></pre>
+<pre><code>##  Family: zero_inflated_poisson 
+##   Links: mu = log; zi = identity 
+## Formula: Y ~ 1 
+##    Data: d (Number of observations: 365) 
+## Samples: 4 chains, each with iter = 2000; warmup = 1000; thin = 1;
+##          total post-warmup samples = 4000
+## 
+## Population-Level Effects: 
+##           Estimate Est.Error l-95% CI u-95% CI Eff.Sample Rhat
+## Intercept     0.06      0.08    -0.11     0.22        931 1.00
+## 
+## Family Specific Parameters: 
+##    Estimate Est.Error l-95% CI u-95% CI Eff.Sample Rhat
+## zi     0.15      0.06     0.04     0.26        927 1.00
+## 
+## Samples were drawn using sampling(NUTS). For each parameter, Eff.Sample 
+## is a crude measure of effective sample size, and Rhat is the potential 
+## scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
+<p>{{% alert note %}} <code>zi</code> in brms corresponds to the probability metric <span class="math inline">\(p_i\)</span>. {{% /alert %}}</p>
+</div>
+</div>
+<div id="over-dispersed-outcomes" class="section level2">
+<h2>11.3. Over-dispersed outcomes</h2>
+<blockquote>
+<p>One symptom that something important has been omitted from a count model is over-dispersion. When the observed variance exceeds its theoretical value, after conditioning on all the predictor variables, this implies that some omitted variable is producing additional dispersion in the observed counts.</p>
+</blockquote>
+<blockquote>
+<p>Ignoring over-dispersion can lead to all of the same problems as ignoring any predictor variable. Heterogeneity in counts can be a confound, hiding effects of interest or producing spurious inferences.</p>
+</blockquote>
+<div id="beta-binomial" class="section level3">
+<h3>11.3.1. Beta-binomial</h3>
+<blockquote>
+<p>A beta-binomial model assumes that each binomial count observation has its own probability of a success. The model estimates the distribution of probabilities of success across cases, instead of a single probability of success. And predictor variables change the shape of this distribution, instead of directly determining the probability of each success.</p>
+</blockquote>
+<pre class="r"><code>pbar &lt;- 0.5
+theta &lt;- 5
+
+ggplot(data = tibble(x = seq(from = 0, to = 1, by = .01))) +
+  geom_ribbon(aes(x = x, 
+                  ymin = 0, 
+                  ymax = rethinking::dbeta2(x, pbar, theta)),
+              fill = canva_pal(&quot;Green fields&quot;)(4)[1]) +
+  scale_x_continuous(breaks = c(0, .5, 1)) +
+  scale_y_continuous(NULL, breaks = NULL) +
+  labs(title = expression(paste(&quot;The &quot;, beta, &quot; distribution&quot;)),
+       x = &quot;probability space&quot;,
+       y = &quot;density&quot;) +
+  theme_hc() +
+  theme(plot.background = element_rect(fill = &quot;grey92&quot;))</code></pre>
+<p><img src="/post/2018-05-05-notes-on-statistical-rethinking-chapter-11-monsters-and-mixtures_files/figure-html/unnamed-chunk-20-1.png" width="672" /></p>
+<p>A beta-binomial model takes the form:</p>
+<p><span class="math display">\[\begin{eqnarray} { A }_{ i } &amp; \sim  &amp; \text{BetaBinomial}\left( n_i, p_i, \theta \right) \\ \text{logit} \left( p_i \right) &amp; = &amp; \alpha \\ \alpha &amp; \sim &amp; \text{Normal} \left( 0,10 \right) \\ \theta &amp; \sim &amp; \text{HalfCauchy} \left( 0,1 \right)  \end{eqnarray}\]</span></p>
+<p>{{% alert note %}} To define your own custom probability family, follow this <a href="https://cran.r-project.org/web/packages/brms/vignettes/brms_customfamilies.html">vignette</a>. {{% /alert %}}</p>
+<pre class="r"><code>library(rethinking)
+data(UCBadmit)
+d &lt;- UCBadmit
+rm(UCBadmit)
+detach(package:rethinking, unload = T)
+library(brms)</code></pre>
+<pre class="r"><code>beta_binomial2 &lt;- 
+  custom_family(
+    &quot;beta_binomial2&quot;, dpars = c(&quot;mu&quot;, &quot;phi&quot;),
+    links = c(&quot;logit&quot;, &quot;log&quot;), lb = c(NA, 0),
+    type = &quot;int&quot;, vars = &quot;trials[n]&quot;
+  )
+
+stan_funs &lt;- &quot;
+  real beta_binomial2_lpmf(int y, real mu, real phi, int T) {
+    return beta_binomial_lpmf(y | T, mu * phi, (1 - mu) * phi);
+  }
+  int beta_binomial2_rng(real mu, real phi, int T) {
+    return beta_binomial_rng(T, mu * phi, (1 - mu) * phi);
+  }
+&quot;</code></pre>
+<p>{{% alert warning %}} The precision parameter can be rather fickle, so it’s better to use <code>dexp</code> instead of <code>dcauchy</code> and to specify a reasonable start value. {{% /alert %}}</p>
+<pre class="r"><code>m11.5 &lt;-
+  brm(data = d, 
+      family = beta_binomial2,  # Here&#39;s our custom likelihood
+      admit | trials(applications) ~ 1,
+      prior = c(set_prior(&quot;normal(0, 2)&quot;, class = &quot;Intercept&quot;),
+                set_prior(&quot;exponential(1)&quot;, class = &quot;phi&quot;)),
+      iter = 4000, warmup = 1000, cores = 2, chains = 2,
+      stan_funs = stan_funs)
+
+print(m11.5)</code></pre>
+<pre><code>##  Family: beta_binomial2 
+##   Links: mu = logit; phi = identity 
+## Formula: admit | trials(applications) ~ 1 
+##    Data: d (Number of observations: 12) 
+## Samples: 2 chains, each with iter = 4000; warmup = 1000; thin = 1;
+##          total post-warmup samples = 6000
+## 
+## Population-Level Effects: 
+##           Estimate Est.Error l-95% CI u-95% CI Eff.Sample Rhat
+## Intercept    -0.36      0.31    -0.97     0.26       4343 1.00
+## 
+## Family Specific Parameters: 
+##     Estimate Est.Error l-95% CI u-95% CI Eff.Sample Rhat
+## phi     2.75      0.97     1.23     4.91       3844 1.00
+## 
+## Samples were drawn using sampling(NUTS). For each parameter, Eff.Sample 
+## is a crude measure of effective sample size, and Rhat is the potential 
+## scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
+<pre class="r"><code>post &lt;- posterior_samples(m11.5)
+
+tibble(x = 0:1) %&gt;%
+  ggplot(aes(x = x)) + 
+  stat_function(fun = rethinking::dbeta2,
+                args = list(prob = mean(invlogit(post[, 1])),
+                            theta = mean(post[, 2])),
+                color = canva_pal(&quot;Green fields&quot;)(4)[4],
+                size = 1.5) +
+  mapply(function(prob, theta) {
+    stat_function(fun = rethinking::dbeta2, 
+                  args = list(prob = prob, theta = theta), 
+                  alpha = .2, 
+                  color = canva_pal(&quot;Green fields&quot;)(4)[4])
+  }, 
+  # Enter prob and theta, here
+  prob = invlogit(post[1:100, 1]),
+  theta = post[1:100, 2]) +
+  scale_y_continuous(NULL, breaks = NULL) +
+  coord_cartesian(ylim = 0:3) +
+  labs(x = &quot;probability admit&quot;) +
+  theme_hc() +
+  theme(plot.background = element_rect(fill = &quot;grey92&quot;))</code></pre>
+<p><img src="/post/2018-05-05-notes-on-statistical-rethinking-chapter-11-monsters-and-mixtures_files/figure-html/unnamed-chunk-24-1.png" width="672" /></p>
+<pre class="r"><code>expose_functions(m11.5, vectorize = TRUE)
+
+# Required to use `predict()`
+log_lik_beta_binomial2 &lt;- 
+  function(i, draws) {
+    mu  &lt;- draws$dpars$mu[, i]
+    phi &lt;- draws$dpars$phi
+    N   &lt;- draws$data$trials[i]
+    y   &lt;- draws$data$Y[i]
+    beta_binomial2_lpmf(y, mu, phi, N)
+  }
+
+predict_beta_binomial2 &lt;- 
+  function(i, draws, ...) {
+    mu  &lt;- draws$dpars$mu[, i]
+    phi &lt;- draws$dpars$phi
+    N   &lt;- draws$data$trials[i]
+    beta_binomial2_rng(mu, phi, N)
+  }
+
+# Required to use `fitted()`
+fitted_beta_binomial2 &lt;- 
+  function(draws) {
+    mu     &lt;- draws$dpars$mu
+    trials &lt;- draws$data$trials
+    trials &lt;- matrix(trials, nrow = nrow(mu), ncol = ncol(mu), byrow = TRUE)
+    mu * trials
+  }</code></pre>
+<pre class="r"><code># The prediction intervals
+predict(m11.5) %&gt;%
+  as_tibble() %&gt;% 
+  rename(LL = Q2.5,
+         UL = Q97.5) %&gt;%
+  select(LL:UL) %&gt;% 
+  # The fitted intervals
+  bind_cols(
+    fitted(m11.5) %&gt;%
+  as_tibble()
+  ) %&gt;% 
+  # The original data used to fit the model
+  bind_cols(m11.5$data) %&gt;% 
+  mutate(case = 1:12) %&gt;% 
+  
+  ggplot(aes(x = case)) +
+  geom_linerange(aes(ymin = LL/applications, 
+                     ymax = UL/applications),
+                 color = canva_pal(&quot;Green fields&quot;)(4)[1], 
+                 size = 2.5, alpha = 1/4) +
+  geom_pointrange(aes(ymin = Q2.5/applications, 
+                      ymax = Q97.5/applications, 
+                      y = Estimate/applications),
+                  color = canva_pal(&quot;Green fields&quot;)(4)[4],
+                  size = 1/2, shape = 1) +
+  geom_point(aes(y = admit/applications),
+             color = canva_pal(&quot;Green fields&quot;)(4)[2],
+             size = 2) +
+  scale_x_continuous(breaks = 1:12) +
+  scale_y_continuous(breaks = c(0, .5, 1)) +
+  coord_cartesian(ylim = 0:1) +
+  labs(subtitle = &quot;Posterior validation check&quot;,
+       y = &quot;Admittance probability&quot;) +
+  theme_hc() +
+  theme(plot.background = element_rect(fill = &quot;grey92&quot;),
+        axis.ticks.x = element_blank(),
+        legend.position = &quot;none&quot;)</code></pre>
+<p><img src="/post/2018-05-05-notes-on-statistical-rethinking-chapter-11-monsters-and-mixtures_files/figure-html/unnamed-chunk-26-1.png" width="672" /></p>
+</div>
+<div id="negative-binomial-or-gamma-poisson" class="section level3">
+<h3>11.3.2. Negative-binomial or gamma-Poisson</h3>
+<blockquote>
+<p>A negative-binomial model, more usefully called a gamma-Poisson model, assumes that each Poisson count observation has its own rate.</p>
+</blockquote>
+</div>
+<div id="over-dispersion-entropy-and-information-criteria" class="section level3">
+<h3>11.3.3. Over-dispersion, entropy, and information criteria</h3>
+<blockquote>
+<p>Both the beta-binomial and gamma-Poisson models are maximum entropy for the same constraints as the regular binomial and Poisson. They just try to account for unobserved heterogeneity in probabilities and rates.</p>
+</blockquote>
+<p>{{% alert warning %}} You should not use WAIC with these models, however, unless you are very sure of what you are doing. The reason is that while ordinary binomial and Poisson models can be aggregated and disaggregated across rows in the data, without changing any causal assumptions, the same is not true of beta-binomial and gamma-Poisson models. The reason is that a betabinomial or gamma-Poisson likelihood applies an unobserved parameter to each row in the data. When we then go to calculate log-likelihoods, how the data are structured will determine how the beta-distributed or gamma-distributed variation enters the model.</p>
+<p>What to do? In most cases, you’ll want to fall back on DIC, which doesn’t force a decomposition of the log-likelihood. Consider also using multilevel models. {{% /alert %}}</p>
 </div>
 </div>
 <div id="references" class="section level2">

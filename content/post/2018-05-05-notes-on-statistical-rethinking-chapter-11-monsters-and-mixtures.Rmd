@@ -23,7 +23,7 @@ Mixture modeling help us transform our modeling to cope with the inconvenient re
 
 ### 11.1.1. Example: Moral intuition
 
-```{r message=FALSE, cache=TRUE}
+```{r message=FALSE}
 library(rethinking)
 data(Trolley)
 d <- Trolley
@@ -641,8 +641,8 @@ fitted_beta_binomial2 <-
 # The prediction intervals
 predict(m11.5) %>%
   as_tibble() %>% 
-  rename(LL = `2.5%ile`,
-         UL = `97.5%ile`) %>%
+  rename(LL = Q2.5,
+         UL = Q97.5) %>%
   select(LL:UL) %>% 
   # The fitted intervals
   bind_cols(
@@ -658,8 +658,8 @@ predict(m11.5) %>%
                      ymax = UL/applications),
                  color = canva_pal("Green fields")(4)[1], 
                  size = 2.5, alpha = 1/4) +
-  geom_pointrange(aes(ymin = `2.5%ile`/applications, 
-                      ymax = `97.5%ile`/applications, 
+  geom_pointrange(aes(ymin = Q2.5/applications, 
+                      ymax = Q97.5/applications, 
                       y = Estimate/applications),
                   color = canva_pal("Green fields")(4)[4],
                   size = 1/2, shape = 1) +

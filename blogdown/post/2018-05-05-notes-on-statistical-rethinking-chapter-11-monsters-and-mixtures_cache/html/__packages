@@ -15,3 +15,4 @@ stringr
 forcats
 bindrcpp
 gridExtra
+broom

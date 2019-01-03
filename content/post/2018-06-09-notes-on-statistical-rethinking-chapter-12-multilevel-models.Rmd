@@ -79,9 +79,9 @@ print(m12.2)
 ```
 
 ```{r message=FALSE, cache=TRUE}
-kf <- kfold(m12.1, m12.2, 
-            K = 10, cores = 2)
-kf
+#kf <- kfold(m12.1, m12.2, 
+#            K = 10)
+#kf
 ```
 
 > The $K$-fold cross-validation difference of 59, with a standard error around 9, suggests that model m12.2 is the clear favorite relative to m12.1. 
